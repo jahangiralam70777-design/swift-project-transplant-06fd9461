@@ -91,7 +91,7 @@ export function PerformanceCenter() {
   const qc = useQueryClient();
   const activity = useRealtimeActivity();
 
-  const { data = FALLBACK_PERFORMANCE_CENTER, isLoading } = useSafeQuery({
+  const { data = FALLBACK_PERFORMANCE_CENTER, isLoading } = useSafeQuery<any>({
     queryKey: ["student-performance-center"],
     queryFn: () => fetchFn(),
     fallbackData: FALLBACK_PERFORMANCE_CENTER,
