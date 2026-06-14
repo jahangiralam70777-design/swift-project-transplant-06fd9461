@@ -1,5 +1,53 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { safeSupabaseQuery, settledValue, type SupabaseLikeResult } from "@/lib/safe-request";
+
+type StudySessionRow = { module: string | null; duration_seconds: number | null; started_at: string; last_heartbeat_at: string | null };
+type AnalyticsAttemptRow = {
+  id: string;
+  quiz_id: string | null;
+  subject_id: string | null;
+  chapter_id: string | null;
+  kind: string | null;
+  score: number | null;
+  correct_count: number | null;
+  total_count: number | null;
+  duration_seconds: number | null;
+  started_at: string;
+  completed_at: string | null;
+  status: string | null;
+};
+type SubjectRow = { id: string; name: string; color: string | null };
+type ChapterRow = { id: string; name: string; subject_id: string | null };
+type PrevAttemptRow = { correct_count: number | null; total_count: number | null; started_at: string };
+type AnswerRow = { attempt_id: string; is_correct: boolean };
+
+const EMPTY_SESSIONS: SupabaseLikeResult<StudySessionRow[]> = { data: [], error: undefined };
+const EMPTY_ATTEMPTS: SupabaseLikeResult<AnalyticsAttemptRow[]> = { data: [], error: undefined };
+const EMPTY_SUBJECTS: SupabaseLikeResult<SubjectRow[]> = { data: [], error: undefined };
+const EMPTY_CHAPTERS: SupabaseLikeResult<ChapterRow[]> = { data: [], error: undefined };
+const EMPTY_PREV_ATTEMPTS: SupabaseLikeResult<PrevAttemptRow[]> = { data: [], error: undefined };
+
+export const FALLBACK_STUDENT_ADVANCED_ANALYTICS = {
+  mcqCounts: { today: 0, week: 0, month: 0, daily: [] as Array<{ date: string; count: number }> },
+  totals: { answered: 0, correct: 0, wrong: 0, accuracy: 0, attempts: 0, weeklyChange: 0 },
+  byKind: {
+    mock: { attempts: 0, accuracy: 0 },
+    quiz: { attempts: 0, accuracy: 0 },
+    mcq_practice: { attempts: 0, accuracy: 0 },
+  },
+  subjectAccuracy: [] as Array<{ id: string; name: string; color: string | null; accuracy: number; attempts: number }>,
+  chapterAccuracy: [] as Array<{ id: string; name: string; subject: string | null; accuracy: number; attempts: number }>,
+  strongTopics: [] as Array<{ id: string; name: string; subject: string | null; accuracy: number; attempts: number }>,
+  weakTopics: [] as Array<{ id: string; name: string; subject: string | null; accuracy: number; attempts: number }>,
+  heatmap: [] as Array<{ date: string; count: number }>,
+  streak: { current: 0, longest: 0 },
+  insights: [] as Array<{ kind: "up" | "down" | "info" | "goal"; text: string }>,
+  goals: {
+    daily: { solved: 0, target: 50, percent: 0 },
+    weekly: { solved: 0, target: 350, percent: 0 },
+  },
+};
 
 /**
  * Advanced analytics for the redesigned student dashboard:
@@ -24,13 +72,19 @@ export const studentAdvancedAnalytics = createServerFn({ method: "GET" })
     const since30 = new Date(now.getTime() - 30 * 86400_000);
     const since90 = new Date(now.getTime() - 90 * 86400_000);
 
-    const [sessionsR, attemptsR, subjectsR, chaptersR, weeklyPrevR] = await Promise.all([
-      supabase
+    const settled = await Promise.allSettled([
+      safeSupabaseQuery<StudySessionRow[]>(
+        "student/advanced/sessions",
+        supabase
         .from("study_sessions")
         .select("module,duration_seconds,started_at,last_heartbeat_at")
         .eq("user_id", userId)
         .gte("started_at", since30.toISOString()),
-      supabase
+        [],
+      ),
+      safeSupabaseQuery<AnalyticsAttemptRow[]>(
+        "student/advanced/attempts",
+        supabase
         .from("exam_attempts")
         .select(
           "id,quiz_id,subject_id,chapter_id,kind,score,correct_count,total_count,duration_seconds,started_at,completed_at,status",
@@ -39,16 +93,38 @@ export const studentAdvancedAnalytics = createServerFn({ method: "GET" })
         .gte("started_at", since90.toISOString())
         .order("started_at", { ascending: false })
         .limit(500),
-      supabase.from("subjects").select("id,name,color"),
-      supabase.from("chapters").select("id,name,subject_id"),
-      supabase
+        [],
+      ),
+      safeSupabaseQuery<SubjectRow[]>(
+        "student/advanced/subjects",
+        supabase.from("subjects").select("id,name,color"),
+        [],
+      ),
+      safeSupabaseQuery<ChapterRow[]>(
+        "student/advanced/chapters",
+        supabase.from("chapters").select("id,name,subject_id"),
+        [],
+      ),
+      safeSupabaseQuery<PrevAttemptRow[]>(
+        "student/advanced/previous-week-attempts",
+        supabase
         .from("exam_attempts")
         .select("correct_count,total_count,started_at")
         .eq("user_id", userId)
         .eq("status", "completed")
         .gte("started_at", new Date(now.getTime() - 14 * 86400_000).toISOString())
         .lt("started_at", since7.toISOString()),
+        [],
+      ),
     ]);
+
+    const [sessionsR, attemptsR, subjectsR, chaptersR, weeklyPrevR] = [
+      settledValue("student/advanced/sessions", settled[0], EMPTY_SESSIONS),
+      settledValue("student/advanced/attempts", settled[1], EMPTY_ATTEMPTS),
+      settledValue("student/advanced/subjects", settled[2], EMPTY_SUBJECTS),
+      settledValue("student/advanced/chapters", settled[3], EMPTY_CHAPTERS),
+      settledValue("student/advanced/previous-week-attempts", settled[4], EMPTY_PREV_ATTEMPTS),
+    ];
 
     const sessions = sessionsR.data ?? [];
     const attempts = (attemptsR.data ?? []).filter((a) => a.status === "completed");
@@ -59,10 +135,14 @@ export const studentAdvancedAnalytics = createServerFn({ method: "GET" })
     const recentIds = attempts.filter((a) => new Date(a.started_at) >= since30).map((a) => a.id);
     let answers: Array<{ attempt_id: string; is_correct: boolean }> = [];
     if (recentIds.length) {
-      const { data: ans } = await supabase
-        .from("attempt_answers")
-        .select("attempt_id,is_correct")
-        .in("attempt_id", recentIds.slice(0, 200));
+      const { data: ans } = await safeSupabaseQuery<AnswerRow[]>(
+        "student/advanced/answers",
+        supabase
+          .from("attempt_answers")
+          .select("attempt_id,is_correct")
+          .in("attempt_id", recentIds.slice(0, 200)),
+        [],
+      );
       answers = ans ?? [];
     }
     const attemptById = new Map(attempts.map((a) => [a.id, a]));

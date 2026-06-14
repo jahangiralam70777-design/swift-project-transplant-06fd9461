@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ShortNotesFlow } from "@/components/dashboard/ShortNotesFlow";
 import { ModuleGuard } from "@/components/dashboard/ModuleGuard";
+import { StudentRouteBoundary } from "@/components/dashboard/StudentRouteBoundary";
 
 export const Route = createFileRoute("/_student/short-notes")({
   component: ShortNotesPage,
@@ -24,8 +25,10 @@ export const Route = createFileRoute("/_student/short-notes")({
 
 function ShortNotesPage() {
   return (
-    <ModuleGuard moduleKey="short_notes">
-      <ShortNotesFlow />
-    </ModuleGuard>
+    <StudentRouteBoundary name="student:short-notes">
+      <ModuleGuard moduleKey="short_notes">
+        <ShortNotesFlow />
+      </ModuleGuard>
+    </StudentRouteBoundary>
   );
 }

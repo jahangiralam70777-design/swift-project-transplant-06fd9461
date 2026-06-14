@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ProfileSettingsFlow } from "@/components/dashboard/ProfileSettingsFlow";
+import { StudentRouteBoundary } from "@/components/dashboard/StudentRouteBoundary";
 
 export const Route = createFileRoute("/_student/profile")({
   component: ProfilePage,
@@ -22,5 +23,9 @@ export const Route = createFileRoute("/_student/profile")({
 });
 
 function ProfilePage() {
-  return <ProfileSettingsFlow />;
+  return (
+    <StudentRouteBoundary name="student:profile">
+      <ProfileSettingsFlow />
+    </StudentRouteBoundary>
+  );
 }

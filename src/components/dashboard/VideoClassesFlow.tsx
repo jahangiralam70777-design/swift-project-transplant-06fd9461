@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
+import { safeSupabaseQuery, settledValue, type SupabaseLikeResult } from "@/lib/safe-request";
 import {
   Sparkles,
   ChevronRight,
@@ -39,6 +40,12 @@ type VideoClass = {
 };
 
 type Step = 0 | 1 | 2 | 3;
+type LevelRow = { code: string; name: string };
+type SubjectRow = { id: string; name: string; level: string };
+type ChapterRow = { id: string; name: string; subject_id: string };
+const EMPTY_LEVELS: SupabaseLikeResult<LevelRow[]> = { data: [], error: undefined };
+const EMPTY_SUBJECTS: SupabaseLikeResult<SubjectRow[]> = { data: [], error: undefined };
+const EMPTY_CHAPTERS: SupabaseLikeResult<ChapterRow[]> = { data: [], error: undefined };
 
 function fmtDuration(s: number) {
   if (!s) return "—";
@@ -65,23 +72,38 @@ export function VideoClassesFlow() {
   const tree = useQuery({
     queryKey: ["student-academic-tree"],
     queryFn: async () => {
-      const [lvl, subj, chap] = await Promise.all([
-        supabase.from("levels").select("code,name").eq("status", "published").order("sort_order"),
-        supabase
+      const settled = await Promise.allSettled([
+        safeSupabaseQuery<LevelRow[]>(
+          "student/classes/levels",
+          supabase.from("levels").select("code,name").eq("status", "published").order("sort_order"),
+          [],
+        ),
+        safeSupabaseQuery<SubjectRow[]>(
+          "student/classes/subjects",
+          supabase
           .from("subjects")
           .select("id,name,level")
           .eq("status", "published")
           .order("sort_order"),
-        supabase
+          [],
+        ),
+        safeSupabaseQuery<ChapterRow[]>(
+          "student/classes/chapters",
+          supabase
           .from("chapters")
           .select("id,name,subject_id")
           .eq("status", "published")
           .order("sort_order"),
+          [],
+        ),
       ]);
+      const lvl = settledValue("student/classes/levels", settled[0], EMPTY_LEVELS);
+      const subj = settledValue("student/classes/subjects", settled[1], EMPTY_SUBJECTS);
+      const chap = settledValue("student/classes/chapters", settled[2], EMPTY_CHAPTERS);
       return {
-        levels: (lvl.data ?? []) as { code: string; name: string }[],
-        subjects: (subj.data ?? []) as { id: string; name: string; level: string }[],
-        chapters: (chap.data ?? []) as { id: string; name: string; subject_id: string }[],
+        levels: lvl.data ?? [],
+        subjects: subj.data ?? [],
+        chapters: chap.data ?? [],
       };
     },
     staleTime: 60_000,

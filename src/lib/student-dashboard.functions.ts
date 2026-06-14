@@ -1,5 +1,48 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { safeSupabaseQuery, settledValue, type SupabaseLikeResult } from "@/lib/safe-request";
+
+type CountRow = { id: unknown };
+type CountResult = SupabaseLikeResult<CountRow[]>;
+type AttemptRow = {
+  id: string;
+  quiz_id: string | null;
+  score: number | null;
+  correct_count: number | null;
+  total_count: number | null;
+  completed_at: string | null;
+  started_at: string | null;
+  status: string | null;
+};
+type NotificationRow = {
+  id: string;
+  title: string;
+  body: string | null;
+  priority: string | null;
+  sent_at: string | null;
+  created_at: string | null;
+  type: string | null;
+};
+type QuizRow = {
+  id: string;
+  title: string;
+  total_questions: number | null;
+  duration_seconds: number | null;
+  starts_at?: string | null;
+  kind?: string | null;
+  created_at: string | null;
+  description?: string | null;
+  subject_id?: string | null;
+  level?: string | null;
+};
+type SubjectRow = { id: string; name: string; color: string | null };
+type QuizSubjectRow = { id: string; subject_id: string | null };
+
+const EMPTY_COUNT: CountResult = { data: [], count: 0, error: undefined };
+const EMPTY_ATTEMPTS: SupabaseLikeResult<AttemptRow[]> = { data: [], error: undefined };
+const EMPTY_NOTIFICATIONS: SupabaseLikeResult<NotificationRow[]> = { data: [], error: undefined };
+const EMPTY_QUIZZES: SupabaseLikeResult<QuizRow[]> = { data: [], error: undefined };
+const EMPTY_SUBJECTS: SupabaseLikeResult<SubjectRow[]> = { data: [], error: undefined };
 
 /**
  * Aggregates everything the student dashboard renders so the UI can stay
@@ -13,6 +56,137 @@ export const studentDashboardSnapshot = createServerFn({ method: "GET" })
 
     const since30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const since7 = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+    const settled = await Promise.allSettled([
+      safeSupabaseQuery<CountRow[]>(
+        "student/dashboard/mcqs/count",
+        supabase.from("mcqs").select("id", { count: "exact", head: true }).eq("status", "published"),
+        [],
+        { countFallback: 0 },
+      ),
+      safeSupabaseQuery<CountRow[]>(
+        "student/dashboard/mcqs/week",
+        supabase
+          .from("mcqs")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "published")
+          .gte("created_at", since7),
+        [],
+        { countFallback: 0 },
+      ),
+      safeSupabaseQuery<CountRow[]>(
+        "student/dashboard/quizzes/count",
+        supabase
+          .from("quizzes")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "published")
+          .eq("kind", "quiz"),
+        [],
+        { countFallback: 0 },
+      ),
+      safeSupabaseQuery<CountRow[]>(
+        "student/dashboard/quizzes/week",
+        supabase
+          .from("quizzes")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "published")
+          .eq("kind", "quiz")
+          .gte("created_at", since7),
+        [],
+        { countFallback: 0 },
+      ),
+      safeSupabaseQuery<CountRow[]>(
+        "student/dashboard/mocks/count",
+        supabase
+          .from("quizzes")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "published")
+          .eq("kind", "mock"),
+        [],
+        { countFallback: 0 },
+      ),
+      safeSupabaseQuery<CountRow[]>(
+        "student/dashboard/mocks/week",
+        supabase
+          .from("quizzes")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "published")
+          .eq("kind", "mock")
+          .gte("created_at", since7),
+        [],
+        { countFallback: 0 },
+      ),
+      safeSupabaseQuery<CountRow[]>(
+        "student/dashboard/notes/count",
+        supabase
+          .from("short_notes")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "published")
+          .eq("is_hidden", false),
+        [],
+        { countFallback: 0 },
+      ),
+      safeSupabaseQuery<CountRow[]>(
+        "student/dashboard/classes/count",
+        supabase
+          .from("video_classes")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "published")
+          .eq("is_hidden", false),
+        [],
+        { countFallback: 0 },
+      ),
+      safeSupabaseQuery<AttemptRow[]>(
+        "student/dashboard/attempts",
+        supabase
+          .from("exam_attempts")
+          .select("id,quiz_id,score,correct_count,total_count,completed_at,started_at,status")
+          .eq("user_id", userId)
+          .gte("started_at", since30)
+          .order("started_at", { ascending: false })
+          .limit(50),
+        [],
+      ),
+      safeSupabaseQuery<NotificationRow[]>(
+        "student/dashboard/notifications",
+        supabase
+          .from("notifications")
+          .select("id,title,body,priority,sent_at,created_at,type")
+          .eq("status", "sent")
+          .order("sent_at", { ascending: false, nullsFirst: false })
+          .limit(6),
+        [],
+      ),
+      safeSupabaseQuery<QuizRow[]>(
+        "student/dashboard/upcoming-mock",
+        supabase
+          .from("quizzes")
+          .select("id,title,total_questions,duration_seconds,starts_at,kind,created_at")
+          .eq("status", "published")
+          .eq("kind", "mock")
+          .order("starts_at", { ascending: true, nullsFirst: false })
+          .limit(1),
+        [],
+      ),
+      safeSupabaseQuery<QuizRow[]>(
+        "student/dashboard/recommended-quizzes",
+        supabase
+          .from("quizzes")
+          .select(
+            "id,title,description,total_questions,duration_seconds,subject_id,created_at,kind,level",
+          )
+          .eq("status", "published")
+          .eq("kind", "quiz")
+          .order("created_at", { ascending: false })
+          .limit(8),
+        [],
+      ),
+      safeSupabaseQuery<SubjectRow[]>(
+        "student/dashboard/subjects",
+        supabase.from("subjects").select("id,name,color").eq("status", "published"),
+        [],
+      ),
+    ]);
 
     const [
       mcqCountR,
@@ -28,76 +202,21 @@ export const studentDashboardSnapshot = createServerFn({ method: "GET" })
       upcomingMockR,
       recommendedQuizR,
       subjectsR,
-    ] = await Promise.all([
-      supabase.from("mcqs").select("id", { count: "exact", head: true }).eq("status", "published"),
-      supabase
-        .from("mcqs")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "published")
-        .gte("created_at", since7),
-      supabase
-        .from("quizzes")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "published")
-        .eq("kind", "quiz"),
-      supabase
-        .from("quizzes")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "published")
-        .eq("kind", "quiz")
-        .gte("created_at", since7),
-      supabase
-        .from("quizzes")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "published")
-        .eq("kind", "mock"),
-      supabase
-        .from("quizzes")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "published")
-        .eq("kind", "mock")
-        .gte("created_at", since7),
-      supabase
-        .from("short_notes")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "published")
-        .eq("is_hidden", false),
-      supabase
-        .from("video_classes")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "published")
-        .eq("is_hidden", false),
-      supabase
-        .from("exam_attempts")
-        .select("id,quiz_id,score,correct_count,total_count,completed_at,started_at,status")
-        .eq("user_id", userId)
-        .gte("started_at", since30)
-        .order("started_at", { ascending: false })
-        .limit(50),
-      supabase
-        .from("notifications")
-        .select("id,title,body,priority,sent_at,created_at,type")
-        .eq("status", "sent")
-        .order("sent_at", { ascending: false, nullsFirst: false })
-        .limit(6),
-      supabase
-        .from("quizzes")
-        .select("id,title,total_questions,duration_seconds,starts_at,kind,created_at")
-        .eq("status", "published")
-        .eq("kind", "mock")
-        .order("starts_at", { ascending: true, nullsFirst: false })
-        .limit(1),
-      supabase
-        .from("quizzes")
-        .select(
-          "id,title,description,total_questions,duration_seconds,subject_id,created_at,kind,level",
-        )
-        .eq("status", "published")
-        .eq("kind", "quiz")
-        .order("created_at", { ascending: false })
-        .limit(8),
-      supabase.from("subjects").select("id,name,color").eq("status", "published"),
-    ]);
+    ] = [
+      settledValue("student/dashboard/mcqs/count", settled[0], EMPTY_COUNT),
+      settledValue("student/dashboard/mcqs/week", settled[1], EMPTY_COUNT),
+      settledValue("student/dashboard/quizzes/count", settled[2], EMPTY_COUNT),
+      settledValue("student/dashboard/quizzes/week", settled[3], EMPTY_COUNT),
+      settledValue("student/dashboard/mocks/count", settled[4], EMPTY_COUNT),
+      settledValue("student/dashboard/mocks/week", settled[5], EMPTY_COUNT),
+      settledValue("student/dashboard/notes/count", settled[6], EMPTY_COUNT),
+      settledValue("student/dashboard/classes/count", settled[7], EMPTY_COUNT),
+      settledValue("student/dashboard/attempts", settled[8], EMPTY_ATTEMPTS),
+      settledValue("student/dashboard/notifications", settled[9], EMPTY_NOTIFICATIONS),
+      settledValue("student/dashboard/upcoming-mock", settled[10], EMPTY_QUIZZES),
+      settledValue("student/dashboard/recommended-quizzes", settled[11], EMPTY_QUIZZES),
+      settledValue("student/dashboard/subjects", settled[12], EMPTY_SUBJECTS),
+    ];
 
     const attempts = attemptsR.data ?? [];
     const completed = attempts.filter((a) => a.status === "completed");
@@ -160,10 +279,11 @@ export const studentDashboardSnapshot = createServerFn({ method: "GET" })
     let learning: Array<{ id: string; title: string; progress: number }> = [];
     if (continueLearning.length) {
       const ids = continueLearning.map((a) => a.quiz_id!) as string[];
-      const { data: quizzesData } = await supabase
-        .from("quizzes")
-        .select("id,title,subject_id")
-        .in("id", ids);
+      const { data: quizzesData } = await safeSupabaseQuery<Array<QuizSubjectRow & { title: string }>>(
+        "student/dashboard/continue-learning-quizzes",
+        supabase.from("quizzes").select("id,title,subject_id").in("id", ids),
+        [],
+      );
       const map = new Map((quizzesData ?? []).map((q) => [q.id, q]));
       learning = continueLearning.map((a) => ({
         id: a.quiz_id!,
@@ -187,10 +307,11 @@ export const studentDashboardSnapshot = createServerFn({ method: "GET" })
       ]),
     ] as string[];
     if (allQuizIds.length) {
-      const { data: qSubs } = await supabase
-        .from("quizzes")
-        .select("id,subject_id")
-        .in("id", allQuizIds);
+      const { data: qSubs } = await safeSupabaseQuery<QuizSubjectRow[]>(
+        "student/dashboard/quiz-subjects",
+        supabase.from("quizzes").select("id,subject_id").in("id", allQuizIds),
+        [],
+      );
       (qSubs ?? []).forEach((q) => quizSubjectMap.set(q.id, q.subject_id ?? null));
     }
 

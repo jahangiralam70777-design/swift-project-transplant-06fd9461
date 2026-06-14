@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { CustomExamFlow } from "@/components/dashboard/CustomExamFlow";
+import { StudentRouteBoundary } from "@/components/dashboard/StudentRouteBoundary";
 
 export const Route = createFileRoute("/_student/custom-exam")({
   component: CustomExamPage,
@@ -15,5 +16,9 @@ export const Route = createFileRoute("/_student/custom-exam")({
 });
 
 function CustomExamPage() {
-  return <CustomExamFlow />;
+  return (
+    <StudentRouteBoundary name="student:custom-exam">
+      <CustomExamFlow />
+    </StudentRouteBoundary>
+  );
 }

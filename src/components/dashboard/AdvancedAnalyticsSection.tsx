@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useEffect } from "react";
 import {
@@ -33,9 +33,11 @@ import {
   Zap,
 } from "lucide-react";
 import {
+  FALLBACK_STUDENT_ADVANCED_ANALYTICS,
   studentAdvancedAnalytics,
   updateStudentMcqGoals,
 } from "@/lib/student-advanced-analytics.functions";
+import { useSafeQuery } from "@/lib/safe-query";
 import {
   Dialog,
   DialogContent,
@@ -264,9 +266,11 @@ function EditGoalsDialog({
 
 export function AdvancedAnalyticsSection() {
   const fetchData = useServerFn(studentAdvancedAnalytics);
-  const { data, isLoading } = useQuery({
+  const { data = FALLBACK_STUDENT_ADVANCED_ANALYTICS, isLoading } = useSafeQuery({
     queryKey: ["student-advanced-analytics"],
     queryFn: () => fetchData(),
+    fallbackData: FALLBACK_STUDENT_ADVANCED_ANALYTICS,
+    route: "student/dashboard/advanced-analytics",
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });

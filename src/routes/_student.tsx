@@ -5,7 +5,8 @@ import { DashSidebar } from "@/components/dashboard/DashSidebar";
 import { DashTopbar } from "@/components/dashboard/DashTopbar";
 import { StudyHeartbeat } from "@/components/tracking/StudyHeartbeat";
 import { useAppStore, hasLocalAuthSession } from "@/stores/app-store";
-import { SectionBoundary } from "@/components/ui/section-state";
+import { SectionBoundary, SectionSkeleton } from "@/components/ui/section-state";
+import { Suspense } from "react";
 
 export const Route = createFileRoute("/_student")({
   // Supabase session lives in localStorage; SSR cannot read it, so render
@@ -65,7 +66,9 @@ function StudentLayout() {
             <DashTopbar />
             <StudyHeartbeat />
             <SectionBoundary name="student:outlet">
-              <Outlet />
+              <Suspense fallback={<SectionSkeleton className="min-h-[60vh] rounded-3xl" />}>
+                <Outlet />
+              </Suspense>
             </SectionBoundary>
           </div>
         </StudentGate>

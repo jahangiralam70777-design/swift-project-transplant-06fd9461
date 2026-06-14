@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { getFlashCardVisibility, listPublicFlashCards } from "@/lib/admin-flash-cards.functions";
+import { safeSupabaseQuery, settledValue, type SupabaseLikeResult } from "@/lib/safe-request";
 
 import {
   Sparkles,
@@ -38,6 +39,9 @@ type Step = 0 | 1 | 2 | 3;
 type LevelRow = { code: string; name: string; description: string | null };
 type SubjectRow = { id: string; name: string; level: string; description: string | null };
 type ChapterRow = { id: string; name: string; subject_id: string; description: string | null };
+const EMPTY_LEVELS: SupabaseLikeResult<LevelRow[]> = { data: [], error: undefined };
+const EMPTY_SUBJECTS: SupabaseLikeResult<SubjectRow[]> = { data: [], error: undefined };
+const EMPTY_CHAPTERS: SupabaseLikeResult<ChapterRow[]> = { data: [], error: undefined };
 
 const levelIcon = (code: string) => {
   const k = code.toLowerCase();
@@ -80,23 +84,38 @@ export function FlashCardsFlow() {
   const tree = useQuery({
     queryKey: ["fc-tree"],
     queryFn: async () => {
-      const [lvl, subj, chap] = await Promise.all([
-        supabase
+      const settled = await Promise.allSettled([
+        safeSupabaseQuery<LevelRow[]>(
+          "student/flash-cards/levels",
+          supabase
           .from("levels")
           .select("code,name,description")
           .eq("status", "published")
           .order("sort_order"),
-        supabase
+          [],
+        ),
+        safeSupabaseQuery<SubjectRow[]>(
+          "student/flash-cards/subjects",
+          supabase
           .from("subjects")
           .select("id,name,level,description")
           .eq("status", "published")
           .order("sort_order"),
-        supabase
+          [],
+        ),
+        safeSupabaseQuery<ChapterRow[]>(
+          "student/flash-cards/chapters",
+          supabase
           .from("chapters")
           .select("id,name,subject_id,description")
           .eq("status", "published")
           .order("sort_order"),
+          [],
+        ),
       ]);
+      const lvl = settledValue("student/flash-cards/levels", settled[0], EMPTY_LEVELS);
+      const subj = settledValue("student/flash-cards/subjects", settled[1], EMPTY_SUBJECTS);
+      const chap = settledValue("student/flash-cards/chapters", settled[2], EMPTY_CHAPTERS);
       return {
         levels: (lvl.data ?? []) as LevelRow[],
         subjects: (subj.data ?? []) as SubjectRow[],
@@ -115,13 +134,16 @@ export function FlashCardsFlow() {
         .filter((c) => c.subject_id === subject!.id)
         .map((c) => c.id);
       if (!chapterIds.length) return {} as Record<string, number>;
-      const { data, error } = await supabase
-        .from("flash_cards")
-        .select("chapter_id")
-        .eq("status", "published")
-        .eq("is_hidden", false)
-        .in("chapter_id", chapterIds);
-      if (error) throw error;
+      const { data } = await safeSupabaseQuery<Array<{ chapter_id: string }>>(
+        "student/flash-cards/chapter-counts",
+        supabase
+          .from("flash_cards")
+          .select("chapter_id")
+          .eq("status", "published")
+          .eq("is_hidden", false)
+          .in("chapter_id", chapterIds),
+        [],
+      );
       const map: Record<string, number> = {};
       for (const id of chapterIds) map[id] = 0;
       for (const r of (data ?? []) as { chapter_id: string }[])
@@ -138,17 +160,20 @@ export function FlashCardsFlow() {
     queryFn: async () => {
       const subjs = (tree.data?.subjects ?? []).filter((s) => s.level === level!.code);
       if (!subjs.length) return {} as Record<string, number>;
-      const { data, error } = await supabase
-        .from("flash_cards")
-        .select("subject_id")
-        .eq("status", "published")
-        .eq("is_hidden", false)
-        .eq("level", level!.code)
-        .in(
-          "subject_id",
-          subjs.map((s) => s.id),
-        );
-      if (error) throw error;
+      const { data } = await safeSupabaseQuery<Array<{ subject_id: string | null }>>(
+        "student/flash-cards/subject-counts",
+        supabase
+          .from("flash_cards")
+          .select("subject_id")
+          .eq("status", "published")
+          .eq("is_hidden", false)
+          .eq("level", level!.code)
+          .in(
+            "subject_id",
+            subjs.map((s) => s.id),
+          ),
+        [],
+      );
       const map: Record<string, number> = {};
       for (const s of subjs) map[s.id] = 0;
       for (const r of (data ?? []) as { subject_id: string | null }[]) {
