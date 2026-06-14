@@ -1,8 +1,9 @@
 /**
  * Student dashboard hooks.
  */
-import { queryOptions, useQuery } from "@tanstack/react-query";
+import { queryOptions } from "@tanstack/react-query";
 import * as StudentDashboardService from "@/lib/services/student-dashboard.service";
+import { useSafeQuery } from "@/lib/safe-query";
 
 export const studentDashboardQueries = {
   snapshot: () =>
@@ -12,4 +13,9 @@ export const studentDashboardQueries = {
     }),
 };
 
-export const useStudentDashboardSnapshot = () => useQuery(studentDashboardQueries.snapshot());
+export const useStudentDashboardSnapshot = () =>
+  useSafeQuery({
+    ...studentDashboardQueries.snapshot(),
+    fallbackData: StudentDashboardService.FALLBACK_STUDENT_DASHBOARD,
+    route: "student/dashboard/snapshot",
+  });
