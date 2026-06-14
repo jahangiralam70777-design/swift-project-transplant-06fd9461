@@ -27,6 +27,7 @@ import { LiveRegionProvider } from "@/components/a11y/LiveRegion";
 import { ConfirmDialogHost } from "@/components/ui/confirm-imperative";
 import { WhatsAppFloatingButton } from "@/components/site/WhatsAppFloatingButton";
 import { LiveChatWidget } from "@/components/site/LiveChatWidget";
+import { AutoRefreshController, LiveIndicator } from "@/lib/auto-refresh";
 
 import appCss from "../styles.css?url";
 
@@ -320,10 +321,12 @@ function RootInner() {
       <SingleSessionGuard />
       <SessionTimeoutGuard />
       <ActivityTracker />
+      <AutoRefreshController />
       <Outlet />
       <ConfirmDialogHost />
       <WhatsAppFloatingButton />
       <LiveChatWidget />
+      <LiveIndicator />
     </Suspense>
   );
 }
