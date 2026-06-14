@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { sanitizeOptionText } from "@/lib/sanitize-option";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Bookmark, Loader2, Search, Trash2, BookOpen, ChevronDown } from "lucide-react";
 

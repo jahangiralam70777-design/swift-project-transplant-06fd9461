@@ -1,6 +1,6 @@
 import { Fragment, useMemo, useState } from "react";
 import { sanitizeOptionText } from "@/lib/sanitize-option";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import {
