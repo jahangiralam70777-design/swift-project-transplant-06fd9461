@@ -4,6 +4,7 @@ import { sanitizeOptionText } from "@/lib/sanitize-option";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
+import { safeSupabaseQuery, settledValue, type SupabaseLikeResult } from "@/lib/safe-request";
 import {
   generateCustomExam,
   submitCustomExamAttempt,
@@ -51,6 +52,9 @@ type SubjectRow = {
   icon: string | null;
 };
 type ChapterRow = { id: string; name: string; subject_id: string; description: string | null };
+const EMPTY_LEVELS: SupabaseLikeResult<LevelRow[]> = { data: [], error: undefined };
+const EMPTY_SUBJECTS: SupabaseLikeResult<SubjectRow[]> = { data: [], error: undefined };
+const EMPTY_CHAPTERS: SupabaseLikeResult<ChapterRow[]> = { data: [], error: undefined };
 type McqRow = {
   id: string;
   chapter_id: string;
@@ -127,23 +131,38 @@ export function CustomExamFlow() {
   const tree = useQuery({
     queryKey: ["custom-exam-tree"],
     queryFn: async () => {
-      const [lvl, subj, chap] = await Promise.all([
-        supabase
+      const settled = await Promise.allSettled([
+        safeSupabaseQuery<LevelRow[]>(
+          "student/custom-exam/levels",
+          supabase
           .from("levels")
           .select("code,name,description,color,icon")
           .eq("status", "published")
           .order("sort_order"),
-        supabase
+          [],
+        ),
+        safeSupabaseQuery<SubjectRow[]>(
+          "student/custom-exam/subjects",
+          supabase
           .from("subjects")
           .select("id,name,level,description,color,icon")
           .eq("status", "published")
           .order("sort_order"),
-        supabase
+          [],
+        ),
+        safeSupabaseQuery<ChapterRow[]>(
+          "student/custom-exam/chapters",
+          supabase
           .from("chapters")
           .select("id,name,subject_id,description")
           .eq("status", "published")
           .order("sort_order"),
+          [],
+        ),
       ]);
+      const lvl = settledValue("student/custom-exam/levels", settled[0], EMPTY_LEVELS);
+      const subj = settledValue("student/custom-exam/subjects", settled[1], EMPTY_SUBJECTS);
+      const chap = settledValue("student/custom-exam/chapters", settled[2], EMPTY_CHAPTERS);
       return {
         levels: (lvl.data ?? []) as LevelRow[],
         subjects: (subj.data ?? []) as SubjectRow[],
@@ -162,12 +181,15 @@ export function CustomExamFlow() {
         .filter((c) => c.subject_id === subject!.id)
         .map((c) => c.id);
       if (chapterIds.length === 0) return {} as Record<string, number>;
-      const { data, error } = await supabase
-        .from("mcqs")
-        .select("chapter_id")
-        .eq("status", "published")
-        .in("chapter_id", chapterIds);
-      if (error) throw error;
+      const { data } = await safeSupabaseQuery<Array<{ chapter_id: string }>>(
+        "student/custom-exam/chapter-counts",
+        supabase
+          .from("mcqs")
+          .select("chapter_id")
+          .eq("status", "published")
+          .in("chapter_id", chapterIds),
+        [],
+      );
       const map: Record<string, number> = {};
       for (const id of chapterIds) map[id] = 0;
       for (const row of (data ?? []) as { chapter_id: string }[]) {

@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { QuestionBankFlow } from "@/components/dashboard/QuestionBankFlow";
 import { ModuleGuard } from "@/components/dashboard/ModuleGuard";
+import { StudentRouteBoundary } from "@/components/dashboard/StudentRouteBoundary";
 
 export const Route = createFileRoute("/_student/qns-bank")({
   component: QnsBankPage,
@@ -24,8 +25,10 @@ export const Route = createFileRoute("/_student/qns-bank")({
 
 function QnsBankPage() {
   return (
-    <ModuleGuard moduleKey="qns_bank">
-      <QuestionBankFlow />
-    </ModuleGuard>
+    <StudentRouteBoundary name="student:qns-bank">
+      <ModuleGuard moduleKey="qns_bank">
+        <QuestionBankFlow />
+      </ModuleGuard>
+    </StudentRouteBoundary>
   );
 }

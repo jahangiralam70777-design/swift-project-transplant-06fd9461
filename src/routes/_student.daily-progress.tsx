@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { lazy, Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StudentRouteBoundary } from "@/components/dashboard/StudentRouteBoundary";
 
 const DailyProgressCenter = lazy(() =>
   import("@/components/dashboard/DailyProgressCenter").then((m) => ({
@@ -24,8 +25,10 @@ export const Route = createFileRoute("/_student/daily-progress")({
 
 function DailyProgressPage() {
   return (
-    <Suspense fallback={<Skeleton className="h-[60vh] w-full rounded-3xl" />}>
-      <DailyProgressCenter />
-    </Suspense>
+    <StudentRouteBoundary name="student:daily-progress">
+      <Suspense fallback={<Skeleton className="h-[60vh] w-full rounded-3xl" />}>
+        <DailyProgressCenter />
+      </Suspense>
+    </StudentRouteBoundary>
   );
 }

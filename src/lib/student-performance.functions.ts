@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { safeSupabaseQuery, settledValue, type SupabaseLikeResult } from "@/lib/safe-request";
 
 /**
  * Single source of truth for student performance across all 4 session types
@@ -156,6 +157,20 @@ type AttemptRow = {
   completed_at: string | null;
   created_at: string;
 };
+type PerfSubjectRow = { id: string; name: string; color?: string | null; sort_order?: number | null };
+type PerfChapterRow = { id: string; name: string; subject_id: string | null; sort_order?: number | null };
+type PerfQuizRow = {
+  id: string;
+  title?: string | null;
+  kind: string | null;
+  subject_id: string | null;
+  chapter_id: string | null;
+  total_questions?: number | null;
+};
+const EMPTY_ATTEMPTS: SupabaseLikeResult<AttemptRow[]> = { data: [], error: undefined };
+const EMPTY_SUBJECTS: SupabaseLikeResult<PerfSubjectRow[]> = { data: [], error: undefined };
+const EMPTY_CHAPTERS: SupabaseLikeResult<PerfChapterRow[]> = { data: [], error: undefined };
+const EMPTY_QUIZZES: SupabaseLikeResult<PerfQuizRow[]> = { data: [], error: undefined };
 
 export const studentPerformanceCenter = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -164,8 +179,10 @@ export const studentPerformanceCenter = createServerFn({ method: "GET" })
 
     const since90 = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
 
-    const [attemptsR, subjectsR, chaptersR, quizzesR] = await Promise.all([
-      supabase
+    const settled = await Promise.allSettled([
+      safeSupabaseQuery<AttemptRow[]>(
+        "student/performance/attempts",
+        supabase
         .from("exam_attempts")
         .select(
           "id,kind,status,quiz_id,subject_id,chapter_id,level,title,score,correct_count,total_count,duration_seconds,attempt_number,started_at,completed_at,created_at",
@@ -174,10 +191,31 @@ export const studentPerformanceCenter = createServerFn({ method: "GET" })
         .gte("created_at", since90)
         .order("created_at", { ascending: false })
         .limit(500),
-      supabase.from("subjects").select("id,name,color").eq("status", "published"),
-      supabase.from("chapters").select("id,name,subject_id").eq("status", "published"),
-      supabase.from("quizzes").select("id,title,kind,subject_id,chapter_id,total_questions"),
+        [],
+      ),
+      safeSupabaseQuery<PerfSubjectRow[]>(
+        "student/performance/subjects",
+        supabase.from("subjects").select("id,name,color").eq("status", "published"),
+        [],
+      ),
+      safeSupabaseQuery<PerfChapterRow[]>(
+        "student/performance/chapters",
+        supabase.from("chapters").select("id,name,subject_id").eq("status", "published"),
+        [],
+      ),
+      safeSupabaseQuery<PerfQuizRow[]>(
+        "student/performance/quizzes",
+        supabase.from("quizzes").select("id,title,kind,subject_id,chapter_id,total_questions"),
+        [],
+      ),
     ]);
+
+    const [attemptsR, subjectsR, chaptersR, quizzesR] = [
+      settledValue("student/performance/attempts", settled[0], EMPTY_ATTEMPTS),
+      settledValue("student/performance/subjects", settled[1], EMPTY_SUBJECTS),
+      settledValue("student/performance/chapters", settled[2], EMPTY_CHAPTERS),
+      settledValue("student/performance/quizzes", settled[3], EMPTY_QUIZZES),
+    ];
 
     const attempts = (attemptsR.data ?? []) as AttemptRow[];
     const subjects = subjectsR.data ?? [];
@@ -289,9 +327,10 @@ export const studentPerformanceCenter = createServerFn({ method: "GET" })
       .map(([id, v]) => ({
         id,
         name: chapterMap.get(id)?.name ?? "Unknown",
-        subjectName: chapterMap.get(id)?.subject_id
-          ? (subjectMap.get(chapterMap.get(id)!.subject_id)?.name ?? null)
-          : null,
+        subjectName: (() => {
+          const subjectId = chapterMap.get(id)?.subject_id ?? null;
+          return subjectId ? (subjectMap.get(subjectId)?.name ?? null) : null;
+        })(),
         accuracy: v.total ? Math.round((v.correct / v.total) * 100) : 0,
         attempts: v.attempts,
       }))
@@ -446,22 +485,33 @@ export const studentCompletionTracker = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("level")
-      .eq("id", userId)
-      .maybeSingle();
+    const { data: profile } = await safeSupabaseQuery<{ level?: string } | null>(
+      "student/completion/profile",
+      supabase.from("profiles").select("level").eq("id", userId).maybeSingle(),
+      null,
+    );
     const level = profile?.level ?? "professional";
 
-    const [subjectsR, quizzesR] = await Promise.all([
-      supabase
+    const settled = await Promise.allSettled([
+      safeSupabaseQuery<PerfSubjectRow[]>(
+        "student/completion/subjects",
+        supabase
         .from("subjects")
         .select("id,name,color,sort_order")
         .eq("status", "published")
         .eq("level", level)
         .order("sort_order", { ascending: true }),
-      supabase.from("quizzes").select("id,chapter_id,subject_id,kind").eq("status", "published"),
+        [],
+      ),
+      safeSupabaseQuery<PerfQuizRow[]>(
+        "student/completion/quizzes",
+        supabase.from("quizzes").select("id,chapter_id,subject_id,kind").eq("status", "published"),
+        [],
+      ),
     ]);
+
+    const subjectsR = settledValue("student/completion/subjects", settled[0], EMPTY_SUBJECTS);
+    const quizzesR = settledValue("student/completion/quizzes", settled[1], EMPTY_QUIZZES);
 
     const subjects = subjectsR.data ?? [];
     const quizzes = quizzesR.data ?? [];
@@ -513,12 +563,16 @@ export const studentCompletionTracker = createServerFn({ method: "GET" })
       };
     }
 
-    const { data: chapters } = await supabase
-      .from("chapters")
-      .select("id,name,subject_id,sort_order")
-      .in("subject_id", subjectIds)
-      .eq("status", "published")
-      .order("sort_order", { ascending: true });
+    const { data: chapters } = await safeSupabaseQuery<PerfChapterRow[]>(
+      "student/completion/chapters",
+      supabase
+        .from("chapters")
+        .select("id,name,subject_id,sort_order")
+        .in("subject_id", subjectIds)
+        .eq("status", "published")
+        .order("sort_order", { ascending: true }),
+      [],
+    );
     const chs = chapters ?? [];
     const chapterIds = chs.map((c) => c.id);
 
@@ -604,8 +658,8 @@ export const studentCompletionTracker = createServerFn({ method: "GET" })
       return {
         id: c.id,
         name: c.name,
-        subjectId: c.subject_id,
-        subjectName: subjectNameById.get(c.subject_id) ?? "—",
+        subjectId: c.subject_id ?? "",
+        subjectName: c.subject_id ? (subjectNameById.get(c.subject_id) ?? "—") : "—",
         mcqsTotal: total,
         mcqsDone: done,
         completionPct: pct,
@@ -627,7 +681,7 @@ export const studentCompletionTracker = createServerFn({ method: "GET" })
       return {
         id: s.id,
         name: s.name,
-        color: s.color,
+        color: s.color ?? null,
         mcqsTotal,
         mcqsDone,
         completionPct: mcqsTotal ? Math.round((mcqsDone / mcqsTotal) * 100) : 0,

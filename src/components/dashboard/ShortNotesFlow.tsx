@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { listPublicShortNotes } from "@/lib/admin-short-notes.functions";
+import { safeSupabaseQuery, settledValue, type SupabaseLikeResult } from "@/lib/safe-request";
 import {
   EyeOff,
   Sparkles,
@@ -40,6 +41,9 @@ type Note = {
 type LevelRow = { code: string; name: string };
 type SubjectRow = { id: string; name: string; level: string };
 type ChapterRow = { id: string; name: string; subject_id: string };
+const EMPTY_LEVELS: SupabaseLikeResult<LevelRow[]> = { data: [], error: undefined };
+const EMPTY_SUBJECTS: SupabaseLikeResult<SubjectRow[]> = { data: [], error: undefined };
+const EMPTY_CHAPTERS: SupabaseLikeResult<ChapterRow[]> = { data: [], error: undefined };
 
 export function ShortNotesFlow() {
   const qc = useQueryClient();
@@ -63,23 +67,38 @@ export function ShortNotesFlow() {
   const tree = useQuery({
     queryKey: ["sn-academic-tree"],
     queryFn: async () => {
-      const [{ data: lv }, { data: sj }, { data: ch }] = await Promise.all([
-        supabase
+      const settled = await Promise.allSettled([
+        safeSupabaseQuery<LevelRow[]>(
+          "student/short-notes/levels",
+          supabase
           .from("levels")
           .select("code,name,sort_order")
           .eq("status", "published")
           .order("sort_order"),
-        supabase
+          [],
+        ),
+        safeSupabaseQuery<SubjectRow[]>(
+          "student/short-notes/subjects",
+          supabase
           .from("subjects")
           .select("id,name,level,sort_order")
           .eq("status", "published")
           .order("sort_order"),
-        supabase
+          [],
+        ),
+        safeSupabaseQuery<ChapterRow[]>(
+          "student/short-notes/chapters",
+          supabase
           .from("chapters")
           .select("id,name,subject_id,sort_order")
           .eq("status", "published")
           .order("sort_order"),
+          [],
+        ),
       ]);
+      const lv = settledValue("student/short-notes/levels", settled[0], EMPTY_LEVELS).data;
+      const sj = settledValue("student/short-notes/subjects", settled[1], EMPTY_SUBJECTS).data;
+      const ch = settledValue("student/short-notes/chapters", settled[2], EMPTY_CHAPTERS).data;
       return {
         levels: (lv ?? []) as LevelRow[],
         subjects: (sj ?? []) as SubjectRow[],

@@ -9,7 +9,7 @@ import { classifyError, isTransientError } from "@/lib/error-classify";
 type BoundaryState = { error: Error | null; resetKey: number; attempts: number };
 
 export class SectionBoundary extends Component<
-  { children: ReactNode; name?: string; className?: string },
+  { children: ReactNode; name?: string; className?: string; onReset?: () => void },
   BoundaryState
 > {
   state: BoundaryState = { error: null, resetKey: 0, attempts: 0 };
@@ -25,6 +25,7 @@ export class SectionBoundary extends Component<
     });
     if (isTransientError(error) && this.state.attempts < 2) {
       this.retryTimer = setTimeout(() => {
+        this.props.onReset?.();
         this.setState((s) => ({ error: null, resetKey: s.resetKey + 1, attempts: s.attempts + 1 }));
       }, 700 * Math.pow(2, this.state.attempts));
     }
@@ -34,14 +35,17 @@ export class SectionBoundary extends Component<
     if (this.retryTimer) clearTimeout(this.retryTimer);
   }
 
-  reset = () => this.setState((s) => ({ error: null, resetKey: s.resetKey + 1, attempts: 0 }));
+  reset = () => {
+    this.props.onReset?.();
+    this.setState((s) => ({ error: null, resetKey: s.resetKey + 1, attempts: 0 }));
+  };
 
   render() {
     if (this.state.error) {
       return (
         <SectionErrorFallback
           error={this.state.error}
-          title="This section failed to load."
+          title="Unable to load this section"
           onRetry={this.reset}
           className={this.props.className}
         />
@@ -63,7 +67,7 @@ export function SectionSkeleton({ className }: { className?: string }) {
 
 export function SectionErrorFallback({
   error,
-  title = "This section failed to load.",
+  title = "Unable to load this section",
   onRetry,
   className,
 }: {
@@ -89,7 +93,7 @@ export function SectionErrorFallback({
         <div className="min-w-0 flex-1">
           <h3 className="font-semibold">{title}</h3>
           <p className="mt-1 text-muted-foreground">
-            {message || "Try again. The rest of the page is still available."}
+            {message || "Try again. The rest of the dashboard is still available."}
           </p>
           {onRetry && (
             <Button size="sm" variant="outline" className="mt-3" onClick={() => void onRetry()}>

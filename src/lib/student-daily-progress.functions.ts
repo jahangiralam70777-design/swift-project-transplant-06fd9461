@@ -1,5 +1,38 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { safeSupabaseQuery, settledValue, type SupabaseLikeResult } from "@/lib/safe-request";
+
+type DailyAttemptRow = {
+  id: string;
+  kind: string | null;
+  status: string | null;
+  subject_id: string | null;
+  chapter_id: string | null;
+  quiz_id: string | null;
+  level: string | null;
+  score: number;
+  correct_count: number;
+  total_count: number;
+  duration_seconds: number;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+  title: string | null;
+};
+type DailySubjectRow = { id: string; name: string; color: string | null; level: string | null };
+type DailyChapterRow = { id: string; name: string; subject_id: string | null };
+type DailyMcqRow = { id: string; chapter_id: string | null };
+type DailyWrongRow = { id: string; mastered: boolean | null; retry_count: number | null; subject_id: string | null; chapter_id: string | null; last_wrong_at: string | null };
+type DailyBookmarkRow = { id: string; subject_id: string | null; chapter_id: string | null; created_at: string | null };
+type DailyAnswerRow = { mcq_id: string; is_correct: boolean; attempt_id: string };
+const EMPTY_ATTEMPTS: SupabaseLikeResult<DailyAttemptRow[]> = { data: [], error: undefined };
+const EMPTY_SUBJECTS: SupabaseLikeResult<DailySubjectRow[]> = { data: [], error: undefined };
+const EMPTY_CHAPTERS: SupabaseLikeResult<DailyChapterRow[]> = { data: [], error: undefined };
+const EMPTY_MCQS: SupabaseLikeResult<DailyMcqRow[]> = { data: [], error: undefined };
+const EMPTY_WRONG: SupabaseLikeResult<DailyWrongRow[]> = { data: [], error: undefined };
+const EMPTY_BOOKMARKS: SupabaseLikeResult<DailyBookmarkRow[]> = { data: [], error: undefined };
+const EMPTY_PROFILE: SupabaseLikeResult<{ level?: string } | null> = { data: null, error: undefined };
+const EMPTY_ANSWERS: SupabaseLikeResult<DailyAnswerRow[]> = { data: [], error: undefined };
 
 /**
  * Daily Progress Center — student-facing realtime aggregate.
@@ -21,9 +54,10 @@ export const studentDailyProgress = createServerFn({ method: "GET" })
     const since60 = new Date(now - 60 * 24 * 60 * 60 * 1000).toISOString();
     const since365 = new Date(now - 365 * 24 * 60 * 60 * 1000).toISOString();
 
-    const [attemptsR, subjectsR, chaptersR, mcqsR, wrongR, bookmarksR, profileR, answersR] =
-      await Promise.all([
-        supabase
+    const settled = await Promise.allSettled([
+        safeSupabaseQuery<DailyAttemptRow[]>(
+          "student/daily-progress/attempts",
+          supabase
           .from("exam_attempts")
           .select(
             "id,kind,status,subject_id,chapter_id,quiz_id,level,score,correct_count,total_count,duration_seconds,started_at,completed_at,created_at,title",
@@ -32,20 +66,48 @@ export const studentDailyProgress = createServerFn({ method: "GET" })
           .gte("created_at", since365)
           .order("created_at", { ascending: false })
           .limit(4000),
-        supabase.from("subjects").select("id,name,color,level").eq("status", "published"),
-        supabase.from("chapters").select("id,name,subject_id").eq("status", "published"),
-        supabase.from("mcqs").select("id,chapter_id").eq("status", "published"),
-        supabase
+          [],
+        ),
+        safeSupabaseQuery<DailySubjectRow[]>(
+          "student/daily-progress/subjects",
+          supabase.from("subjects").select("id,name,color,level").eq("status", "published"),
+          [],
+        ),
+        safeSupabaseQuery<DailyChapterRow[]>(
+          "student/daily-progress/chapters",
+          supabase.from("chapters").select("id,name,subject_id").eq("status", "published"),
+          [],
+        ),
+        safeSupabaseQuery<DailyMcqRow[]>(
+          "student/daily-progress/mcqs",
+          supabase.from("mcqs").select("id,chapter_id").eq("status", "published"),
+          [],
+        ),
+        safeSupabaseQuery<DailyWrongRow[]>(
+          "student/daily-progress/wrong-questions",
+          supabase
           .from("mcq_wrong_questions")
           .select("id,mastered,retry_count,subject_id,chapter_id,last_wrong_at")
           .eq("user_id", userId),
-        supabase
+          [],
+        ),
+        safeSupabaseQuery<DailyBookmarkRow[]>(
+          "student/daily-progress/bookmarks",
+          supabase
           .from("mcq_bookmarks")
           .select("id,subject_id,chapter_id,created_at")
           .eq("user_id", userId),
-        supabase.from("profiles").select("level").eq("id", userId).maybeSingle(),
+          [],
+        ),
+        safeSupabaseQuery<{ level?: string } | null>(
+          "student/daily-progress/profile",
+          supabase.from("profiles").select("level").eq("id", userId).maybeSingle(),
+          null,
+        ),
         // Solved MCQ ids per chapter via attempt_answers join
-        supabase
+        safeSupabaseQuery<DailyAnswerRow[]>(
+          "student/daily-progress/answers",
+          supabase
           .from("attempt_answers")
           .select(
             "mcq_id,is_correct,attempt_id,exam_attempts!inner(user_id,chapter_id,subject_id,created_at)",
@@ -53,7 +115,20 @@ export const studentDailyProgress = createServerFn({ method: "GET" })
           .eq("exam_attempts.user_id", userId)
           .gte("exam_attempts.created_at", since60)
           .limit(5000),
+          [],
+        ),
       ]);
+
+    const [attemptsR, subjectsR, chaptersR, mcqsR, wrongR, bookmarksR, profileR, answersR] = [
+      settledValue("student/daily-progress/attempts", settled[0], EMPTY_ATTEMPTS),
+      settledValue("student/daily-progress/subjects", settled[1], EMPTY_SUBJECTS),
+      settledValue("student/daily-progress/chapters", settled[2], EMPTY_CHAPTERS),
+      settledValue("student/daily-progress/mcqs", settled[3], EMPTY_MCQS),
+      settledValue("student/daily-progress/wrong-questions", settled[4], EMPTY_WRONG),
+      settledValue("student/daily-progress/bookmarks", settled[5], EMPTY_BOOKMARKS),
+      settledValue("student/daily-progress/profile", settled[6], EMPTY_PROFILE),
+      settledValue("student/daily-progress/answers", settled[7], EMPTY_ANSWERS),
+    ];
 
     const attempts = attemptsR.data ?? [];
     const subjects = subjectsR.data ?? [];

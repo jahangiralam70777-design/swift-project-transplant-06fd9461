@@ -1,12 +1,16 @@
 import { Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { lazy, Suspense, useMemo } from "react";
 import { useModuleVisibility } from "@/hooks/use-module-visibility";
 import { studentDashboardSnapshot } from "@/lib/student-dashboard.functions";
-import { studentAdvancedAnalytics } from "@/lib/student-advanced-analytics.functions";
+import {
+  FALLBACK_STUDENT_ADVANCED_ANALYTICS,
+  studentAdvancedAnalytics,
+} from "@/lib/student-advanced-analytics.functions";
+import { FALLBACK_STUDENT_DASHBOARD } from "@/lib/services/student-dashboard.service";
+import { useSafeQuery } from "@/lib/safe-query";
 import { useAppStore } from "@/stores/app-store";
-import { Skeleton } from "@/components/ui/skeleton";
+import { SectionBoundary, SectionSkeleton } from "@/components/ui/section-state";
 
 import { CompletionTracker } from "./CompletionTracker";
 const AdvancedAnalyticsSection = lazy(() =>
@@ -78,18 +82,22 @@ export function DashContent() {
   const userName = useAppStore((s) => s.user?.name ?? "Learner");
 
   const fetchSnapshot = useServerFn(studentDashboardSnapshot);
-  const { data } = useQuery({
+  const { data = FALLBACK_STUDENT_DASHBOARD } = useSafeQuery({
     queryKey: ["student-dashboard-snapshot"],
     queryFn: () => fetchSnapshot(),
+    fallbackData: FALLBACK_STUDENT_DASHBOARD,
+    route: "student/dashboard/home-snapshot",
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
 
   // Dedupes with AdvancedAnalyticsSection's query — gives us real MCQ counts + goals.
   const fetchAdvanced = useServerFn(studentAdvancedAnalytics);
-  const { data: adv } = useQuery({
+  const { data: adv = FALLBACK_STUDENT_ADVANCED_ANALYTICS } = useSafeQuery({
     queryKey: ["student-advanced-analytics"],
     queryFn: () => fetchAdvanced(),
+    fallbackData: FALLBACK_STUDENT_ADVANCED_ANALYTICS,
+    route: "student/dashboard/advanced-summary",
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
@@ -192,6 +200,7 @@ export function DashContent() {
   return (
     <main id="main-content" className="space-y-6 animate-fade-in" aria-label="Student dashboard">
       {/* ============ HERO ============ */}
+      <SectionBoundary name="student-dashboard:hero">
       <section className="relative overflow-hidden rounded-3xl">
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[var(--neon-purple)] via-[oklch(0.55_0.2_270)] to-[var(--neon-blue)]" />
         <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-white/25 blur-3xl animate-float" />
@@ -266,8 +275,10 @@ export function DashContent() {
           </div>
         </div>
       </section>
+      </SectionBoundary>
 
       {/* ============ STAT STRIP ============ */}
+      <SectionBoundary name="student-dashboard:stats">
       <section className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
         {stats.map((s, idx) => (
           <div
@@ -301,8 +312,10 @@ export function DashContent() {
           </div>
         ))}
       </section>
+      </SectionBoundary>
 
       {/* ============ ACCURACY TREND + TODAY GOAL ============ */}
+      <SectionBoundary name="student-dashboard:accuracy-goal">
       <section className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <div className="glass shadow-card-soft rounded-3xl p-5 lg:col-span-2">
           <div className="flex items-center justify-between">
@@ -404,8 +417,10 @@ export function DashContent() {
           </div>
         </div>
       </section>
+      </SectionBoundary>
 
       {/* ============ SUBJECT PERFORMANCE + STUDY CALENDAR ============ */}
+      <SectionBoundary name="student-dashboard:subject-calendar">
       <section className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <div className="glass shadow-card-soft rounded-3xl p-5 lg:col-span-2">
           <div className="flex items-center justify-between">
@@ -504,13 +519,17 @@ export function DashContent() {
           </div>
         </div>
       </section>
+      </SectionBoundary>
 
       {/* ============ ADVANCED ANALYTICS (existing) ============ */}
-      <Suspense fallback={<Skeleton className="h-72 w-full rounded-3xl" />}>
-        <AdvancedAnalyticsSection />
-      </Suspense>
+      <SectionBoundary name="student-dashboard:advanced-analytics">
+        <Suspense fallback={<SectionSkeleton className="h-72 w-full rounded-3xl" />}>
+          <AdvancedAnalyticsSection />
+        </Suspense>
+      </SectionBoundary>
 
       {/* ============ MOCK CARD ============ */}
+      <SectionBoundary name="student-dashboard:mock-card">
       {!mockTestHidden && (
         <section>
           <div className="relative overflow-hidden rounded-3xl p-px">
@@ -564,8 +583,10 @@ export function DashContent() {
           </div>
         </section>
       )}
+      </SectionBoundary>
 
       {/* ============ RECENT ACTIVITY + NOTIFICATIONS + RECOMMENDATIONS ============ */}
+      <SectionBoundary name="student-dashboard:activity-notifications-recommendations">
       <section className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <div className="glass shadow-card-soft rounded-3xl p-5">
           <div className="flex items-center justify-between">
@@ -668,9 +689,12 @@ export function DashContent() {
           </div>
         </div>
       </section>
+      </SectionBoundary>
 
       {/* ============ COMPLETION TRACKER (existing) ============ */}
-      <CompletionTracker />
+      <SectionBoundary name="student-dashboard:completion-tracker">
+        <CompletionTracker />
+      </SectionBoundary>
     </main>
   );
 }

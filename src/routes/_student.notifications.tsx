@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { NotificationsFlow } from "@/components/dashboard/NotificationsFlow";
+import { StudentRouteBoundary } from "@/components/dashboard/StudentRouteBoundary";
 
 export const Route = createFileRoute("/_student/notifications")({
   component: NotificationsPage,
@@ -22,5 +23,9 @@ export const Route = createFileRoute("/_student/notifications")({
 });
 
 function NotificationsPage() {
-  return <NotificationsFlow />;
+  return (
+    <StudentRouteBoundary name="student:notifications">
+      <NotificationsFlow />
+    </StudentRouteBoundary>
+  );
 }

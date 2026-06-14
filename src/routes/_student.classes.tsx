@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { VideoClassesFlow } from "@/components/dashboard/VideoClassesFlow";
 import { ModuleGuard } from "@/components/dashboard/ModuleGuard";
+import { StudentRouteBoundary } from "@/components/dashboard/StudentRouteBoundary";
 
 export const Route = createFileRoute("/_student/classes")({
   component: ClassesPage,
@@ -24,8 +25,10 @@ export const Route = createFileRoute("/_student/classes")({
 
 function ClassesPage() {
   return (
-    <ModuleGuard moduleKey="classes">
-      <VideoClassesFlow />
-    </ModuleGuard>
+    <StudentRouteBoundary name="student:classes">
+      <ModuleGuard moduleKey="classes">
+        <VideoClassesFlow />
+      </ModuleGuard>
+    </StudentRouteBoundary>
   );
 }

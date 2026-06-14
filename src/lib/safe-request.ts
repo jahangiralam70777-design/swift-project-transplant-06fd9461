@@ -10,6 +10,14 @@ export type SafeRequestError = {
   cause?: unknown;
 };
 
+export type SupabaseLikeResult<T> = {
+  data: T | null;
+  error?: unknown;
+  count?: number | null;
+  status?: number;
+  statusText?: string;
+};
+
 export class SafeRequestException extends Error {
   code: string;
   status?: number;
@@ -225,5 +233,44 @@ export async function safeQuery<T>(
     }
   }
   logDataLoadFailure(route, lastError);
+  return fallback;
+}
+
+export async function safeSupabaseQuery<T>(
+  route: string,
+  query: PromiseLike<SupabaseLikeResult<unknown>>,
+  fallbackData: T,
+  options: { countFallback?: number | null; timeoutMs?: number } = {},
+): Promise<SupabaseLikeResult<T>> {
+  try {
+    const result = (await withTimeout(
+      route,
+      () => Promise.resolve(query),
+      options.timeoutMs,
+    )) as SupabaseLikeResult<T>;
+    if (result.error) {
+      logDataLoadFailure(route, result.error, { status: result.status, statusText: result.statusText });
+      return {
+        ...result,
+        data: fallbackData,
+        count: options.countFallback ?? result.count ?? null,
+        error: undefined,
+      };
+    }
+    return {
+      ...result,
+      data: result.data ?? fallbackData,
+      count: result.count ?? options.countFallback ?? null,
+      error: undefined,
+    };
+  } catch (error) {
+    logDataLoadFailure(route, error);
+    return { data: fallbackData, count: options.countFallback ?? null, error: undefined };
+  }
+}
+
+export function settledValue<T>(route: string, result: PromiseSettledResult<T>, fallback: T): T {
+  if (result.status === "fulfilled") return result.value;
+  logDataLoadFailure(route, result.reason);
   return fallback;
 }

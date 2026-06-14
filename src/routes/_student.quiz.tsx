@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { QuizFlow } from "@/components/dashboard/QuizFlow";
 import { ModuleGuard } from "@/components/dashboard/ModuleGuard";
+import { StudentRouteBoundary } from "@/components/dashboard/StudentRouteBoundary";
 
 export const Route = createFileRoute("/_student/quiz")({
   component: QuizPage,
@@ -17,8 +18,10 @@ export const Route = createFileRoute("/_student/quiz")({
 
 function QuizPage() {
   return (
-    <ModuleGuard moduleKey="quiz">
-      <QuizFlow />
-    </ModuleGuard>
+    <StudentRouteBoundary name="student:quiz">
+      <ModuleGuard moduleKey="quiz">
+        <QuizFlow />
+      </ModuleGuard>
+    </StudentRouteBoundary>
   );
 }

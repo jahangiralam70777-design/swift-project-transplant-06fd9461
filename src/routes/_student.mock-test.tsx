@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { lazy, Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ModuleGuard } from "@/components/dashboard/ModuleGuard";
+import { StudentRouteBoundary } from "@/components/dashboard/StudentRouteBoundary";
 
 const MockTestFlow = lazy(() =>
   import("@/components/dashboard/MockTestFlow").then((m) => ({ default: m.MockTestFlow })),
@@ -21,10 +22,12 @@ export const Route = createFileRoute("/_student/mock-test")({
 
 function MockTestPage() {
   return (
-    <ModuleGuard moduleKey="mock_test">
-      <Suspense fallback={<Skeleton className="h-[60vh] w-full" />}>
-        <MockTestFlow />
-      </Suspense>
-    </ModuleGuard>
+    <StudentRouteBoundary name="student:mock-test">
+      <ModuleGuard moduleKey="mock_test">
+        <Suspense fallback={<Skeleton className="h-[60vh] w-full" />}>
+          <MockTestFlow />
+        </Suspense>
+      </ModuleGuard>
+    </StudentRouteBoundary>
   );
 }
