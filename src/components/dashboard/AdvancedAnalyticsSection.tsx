@@ -337,15 +337,17 @@ function EditGoalsDialog({
 
 export function AdvancedAnalyticsSection() {
   const fetchData = useServerFn(studentAdvancedAnalytics);
-  const { data = FALLBACK_STUDENT_ADVANCED_ANALYTICS, isLoading } = useSafeQuery({
+  const { data: response = FALLBACK_STUDENT_ADVANCED_ANALYTICS, isLoading } = useSafeQuery({
     queryKey: ["student-advanced-analytics"],
     queryFn: () => fetchData(),
     fallbackData: FALLBACK_STUDENT_ADVANCED_ANALYTICS,
     route: "student/dashboard/advanced-analytics",
     staleTime: 60_000,
     refetchOnWindowFocus: false,
+    requireAuth: true,
   });
   const [editOpen, setEditOpen] = useState(false);
+  const data = useMemo(() => normalizeAdvancedAnalytics(response), [response]);
 
   if (isLoading || !data) {
     return (
