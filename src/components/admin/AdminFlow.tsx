@@ -106,23 +106,19 @@ export function AdminFlow() {
   const cc = useQuery({
     queryKey: ["admin-control-center"],
     queryFn: () => ccFn(),
-    refetchInterval: 15_000,
   });
   const po = useQuery({
     queryKey: ["admin-premium-overview", periodDays, participationScope],
     queryFn: () =>
       poFn({ data: { period_days: periodDays, participation_scope: participationScope } }),
-    refetchInterval: 15_000,
   });
   const snap = useQuery({
     queryKey: ["admin-dashboard-snapshot"],
     queryFn: () => snapFn(),
-    refetchInterval: 20_000,
   });
   const badge = useQuery({
     queryKey: ["admin-notifications-badge"],
     queryFn: () => badgeFn(),
-    refetchInterval: 20_000,
   });
 
   return (
