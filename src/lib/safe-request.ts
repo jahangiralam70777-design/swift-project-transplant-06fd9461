@@ -39,7 +39,8 @@ const FAILURE_LOG_DEDUPE_MS = 5_000;
 const recentFailureLogs = new Map<string, number>();
 
 function shouldLogFailures(): boolean {
-  return typeof import.meta !== "undefined" && Boolean(import.meta.env?.DEV);
+  if (typeof import.meta !== "undefined" && import.meta.env?.MODE === "test") return false;
+  return true;
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
