@@ -327,9 +327,10 @@ export const studentPerformanceCenter = createServerFn({ method: "GET" })
       .map(([id, v]) => ({
         id,
         name: chapterMap.get(id)?.name ?? "Unknown",
-        subjectName: chapterMap.get(id)?.subject_id
-          ? (subjectMap.get(chapterMap.get(id)!.subject_id)?.name ?? null)
-          : null,
+        subjectName: (() => {
+          const subjectId = chapterMap.get(id)?.subject_id ?? null;
+          return subjectId ? (subjectMap.get(subjectId)?.name ?? null) : null;
+        })(),
         accuracy: v.total ? Math.round((v.correct / v.total) * 100) : 0,
         attempts: v.attempts,
       }))
