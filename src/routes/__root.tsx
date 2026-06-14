@@ -316,16 +316,26 @@ function RootInner() {
     // so navigation almost never suspends. Avoiding a full-screen spinner here
     // prevents the "black screen during route change" flicker.
     <Suspense fallback={null}>
-      <SingleSessionGuard />
-      <SessionTimeoutGuard />
-      <ActivityTracker />
+      <SectionBoundary name="global:single-session">
+        <SingleSessionGuard />
+      </SectionBoundary>
+      <SectionBoundary name="global:session-timeout">
+        <SessionTimeoutGuard />
+      </SectionBoundary>
+      <SectionBoundary name="global:activity-tracker">
+        <ActivityTracker />
+      </SectionBoundary>
       <AutoRefreshController />
       <SectionBoundary name={`route:${path}`}>
         <Outlet />
       </SectionBoundary>
       <ConfirmDialogHost />
-      <WhatsAppFloatingButton />
-      <LiveChatWidget />
+      <SectionBoundary name="global:whatsapp">
+        <WhatsAppFloatingButton />
+      </SectionBoundary>
+      <SectionBoundary name="global:live-chat">
+        <LiveChatWidget />
+      </SectionBoundary>
       <LiveIndicator />
     </Suspense>
   );
