@@ -7,6 +7,7 @@ import {
   type ModuleKey,
   type ModuleVisibilityRow,
 } from "@/lib/module-visibility.functions";
+import { safeQuery } from "@/lib/safe-request";
 
 export type { ModuleKey } from "@/lib/module-visibility.functions";
 
@@ -37,7 +38,7 @@ export function useModuleVisibility() {
   const qc = useQueryClient();
   const query = useQuery({
     queryKey: ["module-visibility"],
-    queryFn: () => listFn(),
+    queryFn: () => safeQuery<ModuleVisibilityRow[]>("module-visibility", () => listFn(), []),
     staleTime: 10_000,
     refetchOnWindowFocus: true,
   });
@@ -46,10 +47,8 @@ export function useModuleVisibility() {
   useEffect(() => {
     const channel = supabase
       .channel("module-visibility-stream")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "module_visibility" },
-        () => qc.invalidateQueries({ queryKey: ["module-visibility"] }),
+      .on("postgres_changes", { event: "*", schema: "public", table: "module_visibility" }, () =>
+        qc.invalidateQueries({ queryKey: ["module-visibility"] }),
       )
       .subscribe();
     return () => {

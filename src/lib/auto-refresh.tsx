@@ -79,7 +79,12 @@ export function AutoRefreshController() {
     const now = Date.now();
     if (now - lastRefreshRef.current < 2000) return;
     lastRefreshRef.current = now;
-    void queryClient.invalidateQueries({ type: "active" });
+    void queryClient.invalidateQueries({
+      type: "active",
+      predicate: (query) =>
+        query.state.fetchStatus !== "fetching" &&
+        !(query.state.status === "error" && query.state.data == null),
+    });
     if (typeof console !== "undefined") {
       console.debug("[auto-refresh]", { reason, tier, pathname });
     }

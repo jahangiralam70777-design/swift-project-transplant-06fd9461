@@ -11,6 +11,7 @@ import { useAppStore, hasLocalAuthSession } from "@/stores/app-store";
 import { supabase } from "@/integrations/supabase/client";
 import { verifyAdminAccess, type VerifyAdminAccessResult } from "@/lib/admin-verify.functions";
 import { useServerFn } from "@tanstack/react-start";
+import { SectionBoundary } from "@/components/ui/section-state";
 
 export const Route = createFileRoute("/admin")({
   // Admin session lives in localStorage (Supabase). SSR-skip + a
@@ -99,7 +100,10 @@ function AdminGate({ children }: { children: React.ReactNode }) {
           navigate({ to: "/admin/login", replace: true });
           return;
         }
-        console.info("[admin-route] admin verified", { userId: userData.user.id, role: result.role });
+        console.info("[admin-route] admin verified", {
+          userId: userData.user.id,
+          role: result.role,
+        });
         setVerified(true);
       } catch (error) {
         if (cancelled) return;
@@ -115,7 +119,9 @@ function AdminGate({ children }: { children: React.ReactNode }) {
   }, [authLoading, sessionReady, user?.id, navigate, verifyAdmin]);
 
   if (!verified) {
-    return <div className="min-h-[60dvh] flex-1 animate-pulse rounded-lg border border-border bg-muted/20" />;
+    return (
+      <div className="min-h-[60dvh] flex-1 animate-pulse rounded-lg border border-border bg-muted/20" />
+    );
   }
 
   return <>{children}</>;
@@ -151,7 +157,9 @@ function AdminLayout() {
         <AdminGate>
           <AdminSidebar />
           <div className="pointer-events-auto min-w-0 flex-1 space-y-4">
-            <Outlet />
+            <SectionBoundary name="admin:outlet">
+              <Outlet />
+            </SectionBoundary>
           </div>
         </AdminGate>
       </div>

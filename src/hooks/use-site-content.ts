@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { publicGetHomepageContent, publicGetSiteSettings } from "@/lib/site-management.functions";
+import { safeQuery } from "@/lib/safe-request";
 
 /**
  * Public read hooks for the admin-managed site content.
@@ -32,7 +33,9 @@ export function useHomepageSections() {
   return useQuery({
     queryKey: SITE_CONTENT_KEY,
     queryFn: async () => {
-      const res = await publicGetHomepageContent();
+      const res = await safeQuery("site-content/homepage", () => publicGetHomepageContent(), {
+        sections: [],
+      });
       return res.sections as SectionEntry[];
     },
     staleTime: 60_000,
@@ -44,7 +47,9 @@ export function useSiteSettings() {
   return useQuery({
     queryKey: SITE_SETTINGS_KEY,
     queryFn: async () => {
-      const res = await publicGetSiteSettings();
+      const res = await safeQuery("site-content/settings", () => publicGetSiteSettings(), {
+        settings: {},
+      });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return res.settings as Record<string, Record<string, any>>;
     },

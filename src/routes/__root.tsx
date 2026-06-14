@@ -20,6 +20,7 @@ import { SessionTimeoutGuard } from "@/components/auth/SessionTimeoutGuard";
 import { classifyError } from "@/lib/error-classify";
 import { ActivityTracker } from "@/components/tracking/ActivityTracker";
 import { RootErrorBoundary } from "@/components/RootErrorBoundary";
+import { SectionBoundary } from "@/components/ui/section-state";
 import { installGlobalErrorReporter, reportError } from "@/lib/error-reporter";
 import { useNavTiming } from "@/lib/nav-timing";
 import { SkipToContent } from "@/components/a11y/SkipToContent";
@@ -37,17 +38,17 @@ import appCss from "../styles.css?url";
 // internal state to end users.
 if (typeof window !== "undefined" && import.meta.env.PROD) {
   const noop = () => undefined;
-  // eslint-disable-next-line no-console
   console.log = noop;
-  // eslint-disable-next-line no-console
   console.debug = noop;
-  // eslint-disable-next-line no-console
   console.info = noop;
 }
 
 function NotFoundComponent() {
   return (
-    <main id="main-content" className="flex min-h-dvh items-center justify-center bg-background px-4">
+    <main
+      id="main-content"
+      className="flex min-h-dvh items-center justify-center bg-background px-4"
+    >
       <div className="max-w-md text-center">
         <p aria-hidden="true" className="text-7xl font-bold text-muted-foreground/40">
           404
@@ -82,33 +83,23 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
     });
   }, [error]);
 
-  const { title, message, kind } = classifyError(error, "page");
+  const { message, kind } = classifyError(error, "page");
   return (
-    <div
-      role="alert"
-      aria-live="assertive"
-      className="flex min-h-dvh items-center justify-center bg-background px-4"
-    >
-      <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">{title}</h1>
+    <div role="alert" aria-live="assertive" className="bg-background px-4 py-8">
+      <div className="mx-auto max-w-md rounded-2xl border border-destructive/20 bg-destructive/5 p-5 text-center">
+        <h1 className="text-lg font-semibold tracking-tight text-foreground">
+          This section failed to load.
+        </h1>
         <p className="mt-2 text-sm text-muted-foreground">{message}</p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
-            onClick={() => {
-              router.invalidate();
+            onClick={async () => {
+              await router.invalidate({ sync: true });
               reset();
             }}
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
             Try again
-          </button>
-          <button
-            onClick={() => {
-              if (typeof window !== "undefined") window.location.reload();
-            }}
-            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-          >
-            Refresh page
           </button>
           <a
             href="/"
@@ -291,9 +282,7 @@ function RootInner() {
   const isAdminRoute = !isAdminLogin && (path === "/admin" || path.startsWith("/admin/"));
   const isStudentRoute = STUDENT_ROUTES.includes(path);
 
-  const hasPersistedSession = useMemo(() => {
-    return hasLocalAuthSession();
-  }, [path, user]);
+  const hasPersistedSession = hasLocalAuthSession();
 
   const redirectTo = useMemo(() => {
     if (typeof window === "undefined") return null;
@@ -322,7 +311,9 @@ function RootInner() {
       <SessionTimeoutGuard />
       <ActivityTracker />
       <AutoRefreshController />
-      <Outlet />
+      <SectionBoundary name={`route:${path}`}>
+        <Outlet />
+      </SectionBoundary>
       <ConfirmDialogHost />
       <WhatsAppFloatingButton />
       <LiveChatWidget />

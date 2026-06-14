@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
+import { useQueryErrorResetBoundary } from "@tanstack/react-query";
 import { Link, useRouter } from "@tanstack/react-router";
 import { AlertTriangle, RefreshCw, Wifi, ShieldAlert, Search, Clock, LifeBuoy } from "lucide-react";
 import { classifyError, isTransientError, type ErrorKind } from "@/lib/error-classify";
+import { logDataLoadFailure } from "@/lib/safe-request";
 
 // Instant navigation: never render a pending fallback between routes.
 // Previous page stays on screen until the next route is ready (TanStack
@@ -46,6 +48,7 @@ const KIND_ICON: Record<ErrorKind, typeof AlertTriangle> = {
 
 export function DefaultErrorFallback({ error, reset }: { error: Error; reset: () => void }) {
   const router = useRouter();
+  const queryReset = useQueryErrorResetBoundary();
   const { kind, title, message } = classifyError(error, "section");
   const Icon = KIND_ICON[kind];
   const attemptsRef = useRef(0);
@@ -53,13 +56,14 @@ export function DefaultErrorFallback({ error, reset }: { error: Error; reset: ()
 
   // Detailed log for the team; UI shows only the friendly message.
   useEffect(() => {
-    console.error("[route-error]", { path: router.state.location.pathname, error });
+    logDataLoadFailure(router.state.location.pathname, error, { boundary: "route" });
   }, [error, router]);
 
   const runRetry = async () => {
     setRetrying(true);
     try {
-      await router.invalidate();
+      queryReset.reset();
+      await router.invalidate({ sync: true });
       reset();
     } finally {
       setRetrying(false);
@@ -80,17 +84,13 @@ export function DefaultErrorFallback({ error, reset }: { error: Error; reset: ()
   }, [error]);
 
   return (
-    <div
-      role="alert"
-      aria-live="polite"
-      className="flex min-h-[40vh] items-center justify-center px-4 py-10"
-    >
-      <div className="max-w-md text-center">
+    <div role="alert" aria-live="polite" className="px-4 py-6">
+      <div className="mx-auto max-w-md text-center">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
           <Icon className="h-6 w-6 text-destructive" aria-hidden />
         </div>
-        <h2 className="mt-4 text-lg font-semibold text-foreground">{title}</h2>
-        <p className="mt-2 text-sm text-muted-foreground">{message}</p>
+        <h2 className="mt-4 text-lg font-semibold text-foreground">This section failed to load.</h2>
+        <p className="mt-2 text-sm text-muted-foreground">{message || title}</p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
             onClick={runRetry}

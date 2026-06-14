@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listLevels } from "@/lib/learning.functions";
+import { safeQuery } from "@/lib/safe-request";
 
 export type LevelRow = {
   code: string;
@@ -27,7 +28,7 @@ export function useLevels(options?: { includeLocked?: boolean }) {
   return useQuery({
     queryKey: ["levels", includeLocked ? "all" : "active"],
     queryFn: async () => {
-      const rows = (await fn()) as LevelRow[];
+      const rows = await safeQuery<LevelRow[]>("levels", () => fn() as Promise<LevelRow[]>, []);
       return includeLocked ? rows : rows.filter((l) => !l.is_locked);
     },
     staleTime: 0,

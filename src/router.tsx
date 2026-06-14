@@ -1,7 +1,8 @@
-import { QueryClient } from "@tanstack/react-query";
+import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 import { createRouter } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
 import { isTransientError } from "@/lib/error-classify";
+import { logDataLoadFailure } from "@/lib/safe-request";
 import {
   DefaultErrorFallback,
   DefaultNotFoundFallback,
@@ -10,6 +11,16 @@ import {
 
 export const getRouter = () => {
   const queryClient = new QueryClient({
+    queryCache: new QueryCache({
+      onError: (error, query) => {
+        logDataLoadFailure(String(query.queryKey.join("/")), error, { queryKey: query.queryKey });
+      },
+    }),
+    mutationCache: new MutationCache({
+      onError: (error, _variables, _context, mutation) => {
+        logDataLoadFailure("mutation", error, { mutationKey: mutation.options.mutationKey });
+      },
+    }),
     defaultOptions: {
       queries: {
         // Reuse cached data across navigations — keeps page switches instant.
@@ -24,9 +35,11 @@ export const getRouter = () => {
         // Auth and not-found failures fail fast — retrying won't help.
         retry: (failureCount, error) => failureCount < 2 && isTransientError(error),
         retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
+        throwOnError: false,
       },
       mutations: {
         retry: (failureCount, error) => failureCount < 1 && isTransientError(error),
+        throwOnError: false,
       },
     },
   });

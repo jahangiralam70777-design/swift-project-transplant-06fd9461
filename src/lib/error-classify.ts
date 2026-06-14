@@ -86,8 +86,8 @@ export function classifyError(error: unknown, scope = "page"): ClassifiedError {
 
   return {
     kind: "unknown",
-    title: "Something went wrong",
-    message: `We couldn't load this ${scope}. This is usually temporary — try again, or head back and reopen it.`,
+    title: "This section failed to load",
+    message: `Try again. The rest of the page is still available.`,
   };
 }
 

@@ -4,6 +4,7 @@ import { Navbar } from "@/components/landing/Navbar";
 import { Hero } from "@/components/landing/Hero";
 import { Features } from "@/components/landing/Features";
 import { CAPremiumSections } from "@/components/landing/CAPremiumSections";
+import { SectionBoundary } from "@/components/ui/section-state";
 
 // Below-the-fold sections lazy-loaded to shrink landing page LCP / TBT.
 const WhyChooseUs = lazy(() =>
@@ -79,30 +80,50 @@ function Index() {
   return (
     <main className="relative min-h-dvh overflow-x-hidden bg-background text-foreground">
       <Navbar />
-      <Hero />
-      <CAPremiumSections />
-      <Features />
-      <Suspense fallback={<SectionFallback />}>
-        <WhyChooseUs />
-      </Suspense>
-      <Suspense fallback={<SectionFallback />}>
-        <LiveStats />
-      </Suspense>
-      <Suspense fallback={<SectionFallback />}>
-        <Testimonials />
-      </Suspense>
-      <Suspense fallback={<SectionFallback />}>
-        <TopRankers />
-      </Suspense>
-      <Suspense fallback={<SectionFallback />}>
-        <AppPromo />
-      </Suspense>
-      <Suspense fallback={<SectionFallback />}>
-        <FAQ />
-      </Suspense>
-      <Suspense fallback={<SectionFallback />}>
-        <FinalCta />
-      </Suspense>
+      <SectionBoundary name="home:hero">
+        <Hero />
+      </SectionBoundary>
+      <SectionBoundary name="home:premium">
+        <CAPremiumSections />
+      </SectionBoundary>
+      <SectionBoundary name="home:features">
+        <Features />
+      </SectionBoundary>
+      <SectionBoundary name="home:why">
+        <Suspense fallback={<SectionFallback />}>
+          <WhyChooseUs />
+        </Suspense>
+      </SectionBoundary>
+      <SectionBoundary name="home:stats">
+        <Suspense fallback={<SectionFallback />}>
+          <LiveStats />
+        </Suspense>
+      </SectionBoundary>
+      <SectionBoundary name="home:testimonials">
+        <Suspense fallback={<SectionFallback />}>
+          <Testimonials />
+        </Suspense>
+      </SectionBoundary>
+      <SectionBoundary name="home:rankers">
+        <Suspense fallback={<SectionFallback />}>
+          <TopRankers />
+        </Suspense>
+      </SectionBoundary>
+      <SectionBoundary name="home:app-promo">
+        <Suspense fallback={<SectionFallback />}>
+          <AppPromo />
+        </Suspense>
+      </SectionBoundary>
+      <SectionBoundary name="home:faq">
+        <Suspense fallback={<SectionFallback />}>
+          <FAQ />
+        </Suspense>
+      </SectionBoundary>
+      <SectionBoundary name="home:final-cta">
+        <Suspense fallback={<SectionFallback />}>
+          <FinalCta />
+        </Suspense>
+      </SectionBoundary>
       <Suspense fallback={null}>
         <Footer />
       </Suspense>
