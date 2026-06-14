@@ -146,6 +146,14 @@ function normalizeDashboardData(value: unknown): DashboardData {
       completed_at: typeof a.completed_at === "string" ? a.completed_at : null,
     }));
 
+  const learning = arrayField<Record<string, unknown>>(source, "learning", value.learning)
+    .filter(isRecord)
+    .map((item, i) => ({
+      id: String(item.id ?? `learning-${i}`),
+      title: String(item.title ?? "Resume session"),
+      progress: Math.max(0, Math.min(100, finiteNumber(item.progress))),
+    }));
+
   const upcomingMock = isRecord(value.upcomingMock)
     ? {
         id: String(value.upcomingMock.id ?? "upcoming-mock"),
@@ -174,7 +182,7 @@ function normalizeDashboardData(value: unknown): DashboardData {
     streak: finiteNumber(value.streak),
     bars,
     subjects,
-    learning: arrayField(source, "learning", value.learning),
+    learning,
     recommendations,
     notifications,
     upcomingMock,
