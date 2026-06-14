@@ -42,6 +42,12 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useAppStore } from "@/stores/app-store";
 import { FloatingQuickActions } from "@/components/admin/FloatingQuickActions";
+import { safeQuery } from "@/lib/safe-request";
+import {
+  FALLBACK_ADMIN_CONTROL_CENTER,
+  FALLBACK_ADMIN_DASHBOARD,
+  FALLBACK_ADMIN_NOTIFICATIONS_BADGE,
+} from "@/lib/services/admin-dashboard.service";
 import {
   adminControlCenter,
   adminDashboardSnapshot,
