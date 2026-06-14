@@ -10,10 +10,10 @@ type DailyAttemptRow = {
   chapter_id: string | null;
   quiz_id: string | null;
   level: string | null;
-  score: number | null;
-  correct_count: number | null;
-  total_count: number | null;
-  duration_seconds: number | null;
+  score: number;
+  correct_count: number;
+  total_count: number;
+  duration_seconds: number;
   started_at: string | null;
   completed_at: string | null;
   created_at: string;
