@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Link } from "@tanstack/react-router";
 import {
@@ -14,6 +14,14 @@ import {
 } from "lucide-react";
 import { studentCompletionTracker } from "@/lib/student-performance.functions";
 import { useRealtimeActivity } from "@/hooks/use-realtime-invalidator";
+import { useSafeQuery } from "@/lib/safe-query";
+
+const FALLBACK_COMPLETION_TRACKER = {
+  subjects: [],
+  chapters: [],
+  recommendations: [],
+  overall: { chaptersDone: 0, chaptersTotal: 0, completionPct: 0 },
+};
 
 function Ring({
   pct,
@@ -69,9 +77,12 @@ export function CompletionTracker() {
   const qc = useQueryClient();
   const activity = useRealtimeActivity();
 
-  const { data, isLoading } = useQuery({
+  const { data = FALLBACK_COMPLETION_TRACKER, isLoading } = useSafeQuery<any>({
     queryKey: ["student-completion-tracker"],
     queryFn: () => fetchFn(),
+    fallbackData: FALLBACK_COMPLETION_TRACKER,
+    route: "student/completion-tracker",
+    requireAuth: true,
     staleTime: 20_000,
     refetchOnWindowFocus: true,
   });
