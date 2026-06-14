@@ -20,6 +20,13 @@ services:
       - key: NODE_VERSION
         value: "22.12.0"
       # ---- Backend (Supabase) — set values in the Render dashboard ----
+      # Browser build-time values. Vite only exposes variables with VITE_ to
+      # the deployed client bundle; without these, auth token attachment fails
+      # and protected dashboard server functions receive no bearer token.
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_PUBLISHABLE_KEY
+        sync: false
       # Server-side URL + publishable (anon) key. Same values as the VITE_ pair
       # in the committed .env file; required by server functions at runtime.
       - key: SUPABASE_URL
