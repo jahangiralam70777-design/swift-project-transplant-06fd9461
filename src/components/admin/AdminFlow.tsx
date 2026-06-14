@@ -47,6 +47,7 @@ import {
   FALLBACK_ADMIN_CONTROL_CENTER,
   FALLBACK_ADMIN_DASHBOARD,
   FALLBACK_ADMIN_NOTIFICATIONS_BADGE,
+  FALLBACK_ADMIN_PREMIUM_OVERVIEW,
 } from "@/lib/services/admin-dashboard.service";
 import {
   adminControlCenter,
@@ -119,7 +120,7 @@ export function AdminFlow() {
       safeQuery(
         "admin/premium-overview",
         () => poFn({ data: { period_days: periodDays, participation_scope: participationScope } }),
-        null as AdminPremiumOverview | null,
+        FALLBACK_ADMIN_PREMIUM_OVERVIEW,
       ),
   });
   const snap = useQuery({
