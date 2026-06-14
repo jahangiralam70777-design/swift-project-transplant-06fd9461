@@ -87,7 +87,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
     });
   }, [error]);
 
-  const { title, message, kind } = classifyError(error, "page");
+  const { message, kind } = classifyError(error, "page");
   return (
     <div
       role="alert"
@@ -106,14 +106,6 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
             Try again
-          </button>
-          <button
-            onClick={() => {
-              if (typeof window !== "undefined") window.location.reload();
-            }}
-            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-          >
-            Refresh page
           </button>
           <a
             href="/"
