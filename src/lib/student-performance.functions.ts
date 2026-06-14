@@ -485,22 +485,33 @@ export const studentCompletionTracker = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("level")
-      .eq("id", userId)
-      .maybeSingle();
+    const { data: profile } = await safeSupabaseQuery<{ level?: string } | null>(
+      "student/completion/profile",
+      supabase.from("profiles").select("level").eq("id", userId).maybeSingle(),
+      null,
+    );
     const level = profile?.level ?? "professional";
 
-    const [subjectsR, quizzesR] = await Promise.all([
-      supabase
+    const settled = await Promise.allSettled([
+      safeSupabaseQuery<PerfSubjectRow[]>(
+        "student/completion/subjects",
+        supabase
         .from("subjects")
         .select("id,name,color,sort_order")
         .eq("status", "published")
         .eq("level", level)
         .order("sort_order", { ascending: true }),
-      supabase.from("quizzes").select("id,chapter_id,subject_id,kind").eq("status", "published"),
+        [],
+      ),
+      safeSupabaseQuery<PerfQuizRow[]>(
+        "student/completion/quizzes",
+        supabase.from("quizzes").select("id,chapter_id,subject_id,kind").eq("status", "published"),
+        [],
+      ),
     ]);
+
+    const subjectsR = settledValue("student/completion/subjects", settled[0], EMPTY_SUBJECTS);
+    const quizzesR = settledValue("student/completion/quizzes", settled[1], EMPTY_QUIZZES);
 
     const subjects = subjectsR.data ?? [];
     const quizzes = quizzesR.data ?? [];
@@ -552,12 +563,16 @@ export const studentCompletionTracker = createServerFn({ method: "GET" })
       };
     }
 
-    const { data: chapters } = await supabase
-      .from("chapters")
-      .select("id,name,subject_id,sort_order")
-      .in("subject_id", subjectIds)
-      .eq("status", "published")
-      .order("sort_order", { ascending: true });
+    const { data: chapters } = await safeSupabaseQuery<PerfChapterRow[]>(
+      "student/completion/chapters",
+      supabase
+        .from("chapters")
+        .select("id,name,subject_id,sort_order")
+        .in("subject_id", subjectIds)
+        .eq("status", "published")
+        .order("sort_order", { ascending: true }),
+      [],
+    );
     const chs = chapters ?? [];
     const chapterIds = chs.map((c) => c.id);
 
