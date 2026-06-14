@@ -658,8 +658,8 @@ export const studentCompletionTracker = createServerFn({ method: "GET" })
       return {
         id: c.id,
         name: c.name,
-        subjectId: c.subject_id,
-        subjectName: subjectNameById.get(c.subject_id) ?? "—",
+        subjectId: c.subject_id ?? "",
+        subjectName: c.subject_id ? (subjectNameById.get(c.subject_id) ?? "—") : "—",
         mcqsTotal: total,
         mcqsDone: done,
         completionPct: pct,
@@ -681,7 +681,7 @@ export const studentCompletionTracker = createServerFn({ method: "GET" })
       return {
         id: s.id,
         name: s.name,
-        color: s.color,
+        color: s.color ?? null,
         mcqsTotal,
         mcqsDone,
         completionPct: mcqsTotal ? Math.round((mcqsDone / mcqsTotal) * 100) : 0,
