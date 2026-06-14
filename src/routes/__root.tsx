@@ -2,7 +2,6 @@ import {
   QueryClient,
   QueryClientProvider,
   useQueryClient,
-  useQueryErrorResetBoundary,
 } from "@tanstack/react-query";
 import {
   Outlet,
@@ -78,7 +77,6 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
-  const queryReset = useQueryErrorResetBoundary();
   // Capture route-level render failures into the system error log.
   useEffect(() => {
     reportError({
@@ -102,7 +100,6 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
             onClick={async () => {
-              queryReset.reset();
               await router.invalidate({ sync: true });
               reset();
             }}

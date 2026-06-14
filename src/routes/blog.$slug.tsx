@@ -88,7 +88,7 @@ export const Route = createFileRoute("/blog/$slug")({
 });
 
 function BlogPostPage() {
-  const { post } = Route.useLoaderData();
+  const { post } = Route.useLoaderData() ?? { post: null };
   const qc = useQueryClient();
   const [progress, setProgress] = useState(0);
   const [copied, setCopied] = useState(false);
@@ -147,7 +147,7 @@ function BlogPostPage() {
     };
   }, [post?.id, qc]);
 
-  const { data: related } = useBlogRelated(post?.id, post?.category_id ?? null, 3);
+  const { data: related } = useBlogRelated(post?.id ?? "", post?.category_id ?? null, 3);
   const { data: adjacent } = useBlogAdjacent(post?.published_at ?? null);
 
   if (!post) {
@@ -242,7 +242,7 @@ function BlogPostPage() {
               <p className="mt-5 text-lg text-muted-foreground">{post.excerpt}</p>
             )}
             <div className="mt-6 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-              <span>{post.reading_minutes} min read</span>
+              <span>{post.reading_minutes ?? 1} min read</span>
               {post.published_at && (
                 <>
                   <span>•</span>
@@ -256,7 +256,7 @@ function BlogPostPage() {
                 </>
               )}
               <span>•</span>
-              <span>{post.view_count.toLocaleString()} views</span>
+              <span>{(post.view_count ?? 0).toLocaleString()} views</span>
             </div>
 
             {post.cover_image_url && (
@@ -328,9 +328,9 @@ function BlogPostPage() {
               </button>
             </div>
 
-            {post.tags.length > 0 && (
+            {(post.tags ?? []).length > 0 && (
               <div className="mt-10 flex flex-wrap gap-2">
-                {post.tags.map((t) => (
+                {(post.tags ?? []).map((t) => (
                   <span
                     key={t.id}
                     className="rounded-full border border-border/60 bg-card/40 px-3 py-1 text-xs text-muted-foreground backdrop-blur"
