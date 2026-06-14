@@ -50,6 +50,33 @@ export const Route = createFileRoute("/admin/users/analytics")({
 
 const COLORS = ["#a855f7", "#22d3ee", "#10b981", "#f59e0b", "#ef4444", "#6366f1"];
 
+type Metric = z.infer<typeof metricEnum>;
+type Range = z.infer<typeof rangeEnum>;
+
+function fallbackMetricData(metric: Metric, range: Range): AnyData {
+  if (metric === "devices") {
+    return { metric: "devices", range, breakdown: [], totalLogins: 0 } as AnyData;
+  }
+  if (metric === "heatmap") {
+    const days = range === "24h" ? 1 : range === "30d" || range === "lifetime" ? 30 : 7;
+    return {
+      metric: "heatmap",
+      range,
+      days,
+      hours: 24,
+      cells: Array(days * 24).fill(0),
+      max: 1,
+      total: 0,
+    } as AnyData;
+  }
+  return {
+    metric,
+    range,
+    series: [],
+    summary: { uniqueUsers: 0, totalLogins: 0, totalUsageSeconds: 0, avgUsagePerUser: 0 },
+  } as AnyData;
+}
+
 function AdminUserAnalyticsPage() {
   const { metric, range } = Route.useSearch();
   const navigate = useNavigate({ from: "/admin/users/analytics" });
