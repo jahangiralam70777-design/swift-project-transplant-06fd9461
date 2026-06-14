@@ -89,6 +89,7 @@ export function DashContent() {
     route: "student/dashboard/home-snapshot",
     staleTime: 30_000,
     refetchOnWindowFocus: false,
+    requireAuth: true,
   });
 
   // Dedupes with AdvancedAnalyticsSection's query — gives us real MCQ counts + goals.
@@ -100,6 +101,7 @@ export function DashContent() {
     route: "student/dashboard/advanced-summary",
     staleTime: 60_000,
     refetchOnWindowFocus: false,
+    requireAuth: true,
   });
 
   const counts = data?.counts;
