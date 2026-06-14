@@ -5,8 +5,9 @@
  * with `ensureQueryData` in loaders or `useSuspenseQuery` in components,
  * and the convenience `useXyz` hooks for `useQuery`-style consumption.
  */
-import { queryOptions, useQuery } from "@tanstack/react-query";
+import { queryOptions } from "@tanstack/react-query";
 import * as BlogService from "@/lib/services/blog.service";
+import { useSafeQuery } from "@/lib/safe-query";
 
 export const blogQueries = {
   list: (categorySlug: string | undefined, limit = 50) =>
@@ -44,11 +45,45 @@ export const blogQueries = {
 };
 
 export const useBlogList = (categorySlug?: string, limit = 50) =>
-  useQuery(blogQueries.list(categorySlug, limit));
-export const useBlogCategories = () => useQuery(blogQueries.categories());
-export const useBlogTrending = (limit = 5) => useQuery(blogQueries.trending(limit));
-export const useBlogPost = (slug: string) => useQuery(blogQueries.post(slug));
+  useSafeQuery({
+    queryKey: ["blog", "list", categorySlug ?? "", limit] as const,
+    queryFn: () => BlogService.listPosts({ categorySlug, limit }),
+    fallbackData: [],
+    route: "blog/list",
+  });
+export const useBlogCategories = () =>
+  useSafeQuery({
+    queryKey: ["blog", "categories"] as const,
+    queryFn: () => BlogService.listCategories(),
+    fallbackData: [],
+    route: "blog/categories",
+  });
+export const useBlogTrending = (limit = 5) =>
+  useSafeQuery({
+    queryKey: ["blog", "trending", limit] as const,
+    queryFn: () => BlogService.listTrending(limit),
+    fallbackData: [],
+    route: "blog/trending",
+  });
+export const useBlogPost = (slug: string) =>
+  useSafeQuery({
+    queryKey: ["blog", "post", slug] as const,
+    queryFn: () => BlogService.getPost(slug),
+    fallbackData: null,
+    route: `blog/post/${slug}`,
+  });
 export const useBlogRelated = (postId: string | undefined, categoryId: string | null, limit = 4) =>
-  useQuery(blogQueries.related(postId, categoryId, limit));
+  useSafeQuery({
+    queryKey: ["blog", "related", postId ?? "", categoryId ?? "", limit] as const,
+    queryFn: () => (postId ? BlogService.listRelated(postId, categoryId, limit) : Promise.resolve([])),
+    fallbackData: [],
+    enabled: !!postId,
+    route: "blog/related",
+  });
 export const useBlogAdjacent = (publishedAt: string | null) =>
-  useQuery(blogQueries.adjacent(publishedAt));
+  useSafeQuery({
+    queryKey: ["blog", "adjacent", publishedAt ?? ""] as const,
+    queryFn: () => BlogService.getAdjacent(publishedAt),
+    fallbackData: { prev: null, next: null },
+    route: "blog/adjacent",
+  });
