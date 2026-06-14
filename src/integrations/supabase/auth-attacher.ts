@@ -2,14 +2,22 @@
 import { createMiddleware } from '@tanstack/react-start'
 import { supabase } from './client'
 
+async function readTokenWithRestore(timeoutMs = 5000): Promise<string | undefined> {
+  const read = supabase.auth.getSession().then(({ data }) => data.session?.access_token)
+  if (typeof window === 'undefined') return read
+  return Promise.race([
+    read,
+    new Promise<undefined>((resolve) => window.setTimeout(() => resolve(undefined), timeoutMs)),
+  ])
+}
+
 // Must be registered as a global `functionMiddleware` in `src/start.ts`; otherwise
 // the browser never attaches the bearer token to serverFn RPCs.
 export const attachSupabaseAuth = createMiddleware({ type: 'function' }).client(
   async ({ next }) => {
     let token: string | undefined
     try {
-      const { data } = await supabase.auth.getSession()
-      token = data.session?.access_token
+      token = await readTokenWithRestore()
     } catch (error) {
       console.warn('[auth-attacher] session read failed; continuing without bearer', error)
     }

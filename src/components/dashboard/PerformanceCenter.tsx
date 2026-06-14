@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Link } from "@tanstack/react-router";
 import {
@@ -23,6 +23,29 @@ import {
 import { studentPerformanceCenter } from "@/lib/student-performance.functions";
 import { useRealtimeActivity } from "@/hooks/use-realtime-invalidator";
 import { CountUp } from "@/components/realtime/CountUp";
+import { useSafeQuery } from "@/lib/safe-query";
+
+const FALLBACK_PERFORMANCE_CENTER = {
+  summary: [],
+  recent: [],
+  improvements: [],
+  weakChapters: [],
+  subjectPerformance: [],
+  strongestSubject: null,
+  weakestSubject: null,
+  trend: [],
+  continueLearning: [],
+  totals: {
+    attempts: 0,
+    inProgress: 0,
+    accuracy: 0,
+    avgCompletionSec: 0,
+    improvementPct: 0,
+    answered: 0,
+    correct: 0,
+    durationSeconds: 0,
+  },
+};
 
 const KIND_META: Record<
   string,
@@ -68,9 +91,12 @@ export function PerformanceCenter() {
   const qc = useQueryClient();
   const activity = useRealtimeActivity();
 
-  const { data, isLoading } = useQuery({
+  const { data = FALLBACK_PERFORMANCE_CENTER, isLoading } = useSafeQuery<any>({
     queryKey: ["student-performance-center"],
     queryFn: () => fetchFn(),
+    fallbackData: FALLBACK_PERFORMANCE_CENTER,
+    route: "student/performance-center",
+    requireAuth: true,
     staleTime: 15_000,
     refetchOnWindowFocus: true,
   });

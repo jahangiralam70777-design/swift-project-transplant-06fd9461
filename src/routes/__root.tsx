@@ -281,8 +281,7 @@ function RootInner() {
         query.state.fetchStatus !== "fetching" &&
         !(query.state.status === "error" && query.state.data == null),
     });
-    void router.invalidate();
-  }, [authVersion, queryClient, router, user]);
+  }, [authVersion, queryClient, user]);
 
   const path = location.pathname;
   // /admin/login is a PUBLIC admin sign-in page — it must not be treated as a

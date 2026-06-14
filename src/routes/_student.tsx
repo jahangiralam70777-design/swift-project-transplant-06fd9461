@@ -4,7 +4,7 @@ import { Suspense, useEffect } from "react";
 import { DashSidebar } from "@/components/dashboard/DashSidebar";
 import { DashTopbar } from "@/components/dashboard/DashTopbar";
 import { StudyHeartbeat } from "@/components/tracking/StudyHeartbeat";
-import { useAppStore, hasLocalAuthSession } from "@/stores/app-store";
+import { useAppStore, hasLocalAuthSession, waitForAuthReady } from "@/stores/app-store";
 import { SectionBoundary, SectionSkeleton } from "@/components/ui/section-state";
 
 export const Route = createFileRoute("/_student")({
@@ -12,9 +12,13 @@ export const Route = createFileRoute("/_student")({
   // the protected subtree client-only. The synchronous beforeLoad gate
   // gives SSR-safe, no-flash protection before any child renders.
   ssr: false,
-  beforeLoad: ({ location }) => {
+  beforeLoad: async ({ location }) => {
     if (typeof window === "undefined") return;
     if (!hasLocalAuthSession()) {
+      throw redirect({ to: "/login", search: { redirect: location.href } });
+    }
+    const ready = await waitForAuthReady();
+    if (!ready) {
       throw redirect({ to: "/login", search: { redirect: location.href } });
     }
   },
@@ -42,6 +46,10 @@ function StudentGate({ children }: { children: React.ReactNode }) {
       navigate({ to: "/login", replace: true });
     }
   }, [sessionReady, authLoading, user, navigate]);
+
+  if (!sessionReady || authLoading) {
+    return <SectionSkeleton className="min-h-[60vh] flex-1 rounded-3xl" />;
+  }
 
   return <>{children}</>;
 }

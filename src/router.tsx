@@ -50,7 +50,7 @@ export const getRouter = () => {
     scrollRestoration: true,
     defaultPreload: "intent",
     defaultPreloadDelay: 30,
-    defaultPreloadStaleTime: 0,
+    defaultPreloadStaleTime: 60_000,
     defaultErrorComponent: DefaultErrorFallback,
     defaultNotFoundComponent: DefaultNotFoundFallback,
     defaultPendingComponent: DefaultPendingFallback,

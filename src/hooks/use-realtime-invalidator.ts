@@ -22,6 +22,7 @@ type Listener = (event: RealtimeEvent) => void;
 const listeners = new Set<Listener>();
 let lastEvent: RealtimeEvent | null = null;
 let totalEvents = 0;
+const REALTIME_INVALIDATION_DELAY_MS = 350;
 
 export const realtimeBus = {
   emit(event: RealtimeEvent) {
@@ -341,6 +342,21 @@ export function useRealtimeInvalidator(enabled = true) {
 
   useEffect(() => {
     if (!enabled) return;
+    const pendingKeys = new Set<string>();
+    let flushTimer: number | null = null;
+
+    const scheduleInvalidation = (keys: readonly string[]) => {
+      keys.forEach((key) => pendingKeys.add(key));
+      if (flushTimer) return;
+      flushTimer = window.setTimeout(() => {
+        const keysToFlush = Array.from(pendingKeys);
+        pendingKeys.clear();
+        flushTimer = null;
+        keysToFlush.forEach((key) => {
+          qc.invalidateQueries({ queryKey: [key], refetchType: "active" });
+        });
+      }, REALTIME_INVALIDATION_DELAY_MS);
+    };
 
     // Stable channel name avoids creating a new subscription on every mount.
     const channel = supabase.channel("global-realtime-invalidator");
@@ -354,15 +370,7 @@ export function useRealtimeInvalidator(enabled = true) {
           // De-dupe keys; queryKey: [key] with default exact:false already
           // matches every query whose key starts with [key], so the previous
           // predicate pass was redundant.
-          const seen = new Set<string>();
-          for (const key of meta.keys) {
-            if (seen.has(key)) continue;
-            seen.add(key);
-            // refetchType:'active' only refetches queries that are mounted —
-            // background lists stay cached and silently update on next mount,
-            // so users never see an interruptive "live sync" pop in their UI.
-            qc.invalidateQueries({ queryKey: [key], refetchType: "active" });
-          }
+          scheduleInvalidation(Array.from(new Set(meta.keys)));
 
           // Silent: emit to the realtime bus for the LiveIndicator pulse,
           // but never show a toast — those were disrupting the UX on every
@@ -375,6 +383,7 @@ export function useRealtimeInvalidator(enabled = true) {
     channel.subscribe();
 
     return () => {
+      if (flushTimer) window.clearTimeout(flushTimer);
       supabase.removeChannel(channel);
     };
   }, [enabled, qc]);

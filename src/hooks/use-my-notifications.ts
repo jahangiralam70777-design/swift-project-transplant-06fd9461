@@ -1,7 +1,5 @@
-import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { supabase } from "@/integrations/supabase/client";
 import { useAppStore } from "@/stores/app-store";
 import { safeQuery } from "@/lib/safe-request";
 import {
@@ -41,31 +39,6 @@ export function useMyNotifications(enabledOpt = true) {
     enabled,
     staleTime: 30_000,
   });
-
-  // Realtime sync — unique channel name per mount avoids the
-  // "cannot add postgres_changes callbacks after subscribe()" crash
-  // that happens in React StrictMode double-mount / fast refresh, where
-  // the previous channel hasn't been fully removed yet when the next
-  // effect runs.
-  useEffect(() => {
-    if (!enabled) return;
-    const channelName = `my-notif-live-${Math.random().toString(36).slice(2, 10)}`;
-    const ch = supabase.channel(channelName);
-    ch.on("postgres_changes", { event: "*", schema: "public", table: "notifications" }, () =>
-      qc.invalidateQueries({ queryKey: MY_NOTIF_KEY }),
-    );
-    ch.on("postgres_changes", { event: "*", schema: "public", table: "notification_reads" }, () =>
-      qc.invalidateQueries({ queryKey: MY_NOTIF_KEY }),
-    );
-    ch.subscribe();
-    return () => {
-      try {
-        supabase.removeChannel(ch);
-      } catch {
-        /* noop */
-      }
-    };
-  }, [qc, enabled]);
 
   const markRead = useMutation({
     mutationFn: (id: string) => markFn({ data: { id } }),
