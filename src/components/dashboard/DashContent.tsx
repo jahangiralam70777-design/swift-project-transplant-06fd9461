@@ -260,7 +260,7 @@ export function DashContent() {
   const userName = useAppStore((s) => s.user?.name ?? "Learner");
 
   const fetchSnapshot = useServerFn(studentDashboardSnapshot);
-  const { data = FALLBACK_STUDENT_DASHBOARD } = useSafeQuery({
+  const { data: dashboardResponse = FALLBACK_STUDENT_DASHBOARD } = useSafeQuery({
     queryKey: ["student-dashboard-snapshot"],
     queryFn: () => fetchSnapshot(),
     fallbackData: FALLBACK_STUDENT_DASHBOARD,
@@ -272,7 +272,7 @@ export function DashContent() {
 
   // Dedupes with AdvancedAnalyticsSection's query — gives us real MCQ counts + goals.
   const fetchAdvanced = useServerFn(studentAdvancedAnalytics);
-  const { data: adv = FALLBACK_STUDENT_ADVANCED_ANALYTICS } = useSafeQuery({
+  const { data: advancedResponse = FALLBACK_STUDENT_ADVANCED_ANALYTICS } = useSafeQuery({
     queryKey: ["student-advanced-analytics"],
     queryFn: () => fetchAdvanced(),
     fallbackData: FALLBACK_STUDENT_ADVANCED_ANALYTICS,
@@ -282,8 +282,11 @@ export function DashContent() {
     requireAuth: true,
   });
 
-  const counts = data?.counts;
-  const bars = data?.bars ?? [0, 0, 0, 0, 0, 0, 0];
+  const data = useMemo(() => normalizeDashboardData(dashboardResponse), [dashboardResponse]);
+  const adv = useMemo(() => normalizeAdvancedData(advancedResponse), [advancedResponse]);
+
+  const counts = data.counts;
+  const bars = data.bars;
   const subjects = useMemo(() => {
     const list = data?.subjects ?? [];
     const palette = [
@@ -299,12 +302,12 @@ export function DashContent() {
   }, [data]);
 
   // Real MCQ-derived numbers (questions, not sessions)
-  const mcqsAnswered = adv?.totals.answered ?? 0;
-  const mcqsToday = adv?.mcqCounts.today ?? 0;
-  const mcqsWeek = adv?.mcqCounts.week ?? 0;
-  const mcqsMonth = adv?.mcqCounts.month ?? 0;
-  const dailyTarget = adv?.goals.daily.target ?? 0;
-  const dailyPercent = adv?.goals.daily.percent ?? 0;
+  const mcqsAnswered = adv.totals.answered;
+  const mcqsToday = adv.mcqCounts.today;
+  const mcqsWeek = adv.mcqCounts.week;
+  const mcqsMonth = adv.mcqCounts.month;
+  const dailyTarget = adv.goals.daily.target;
+  const dailyPercent = adv.goals.daily.percent;
 
   const stats = [
     {
