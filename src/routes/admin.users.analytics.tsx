@@ -24,6 +24,7 @@ import {
 import { adminUserAnalyticsMetric } from "@/lib/admin-user-analytics-service.functions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { safeQuery } from "@/lib/safe-request";
 
 const metricEnum = z.enum(["active", "usage", "devices", "heatmap"]);
 const rangeEnum = z.enum(["24h", "7d", "30d", "lifetime"]);
@@ -56,7 +57,8 @@ function AdminUserAnalyticsPage() {
   const fn = useServerFn(adminUserAnalyticsMetric);
   const { data, isFetching, error } = useQuery({
     queryKey: ["admin-user-analytics", metric, range],
-    queryFn: () => fn({ data: { metric, range } }),
+    queryFn: () =>
+      safeQuery("admin/users/analytics", () => fn({ data: { metric, range } }), fallbackMetricData(metric, range)),
     placeholderData: keepPreviousData,
   });
 
