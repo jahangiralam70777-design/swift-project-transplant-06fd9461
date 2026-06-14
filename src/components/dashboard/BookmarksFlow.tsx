@@ -7,6 +7,7 @@ import { Bookmark, Loader2, Search, Trash2, BookOpen, ChevronDown } from "lucide
 import { listBookmarkedMcqs, toggleMcqBookmark } from "@/lib/mcq-review.functions";
 import { listSubjects, listChapters } from "@/lib/learning.functions";
 import { useLevels } from "@/hooks/use-levels";
+import { useSafeQuery } from "@/lib/safe-query";
 
 export function BookmarksFlow() {
   const [level, setLevel] = useState<string | null>(null);
@@ -21,18 +22,24 @@ export function BookmarksFlow() {
   const subjectsFn = useServerFn(listSubjects);
   const chaptersFn = useServerFn(listChapters);
 
-  const subjectsQ = useQuery({
+  const subjectsQ = useSafeQuery<any[]>({
     queryKey: ["subjects", level],
     queryFn: () => subjectsFn({ data: { level: level ?? undefined } }),
+    fallbackData: [],
+    route: "student/bookmarks/subjects",
+    requireAuth: true,
   });
   const { data: levelsList = [] } = useLevels();
 
-  const chaptersQ = useQuery({
+  const chaptersQ = useSafeQuery<any[]>({
     queryKey: ["chapters", subjectId],
     queryFn: () => chaptersFn({ data: { subjectId: subjectId! } }),
     enabled: !!subjectId,
+    fallbackData: [],
+    route: "student/bookmarks/chapters",
+    requireAuth: true,
   });
-  const bookmarksQ = useQuery({
+  const bookmarksQ = useSafeQuery<any[]>({
     queryKey: ["mcq-bookmarks", { level, subjectId, chapterId }],
     queryFn: () =>
       listFn({
@@ -42,6 +49,9 @@ export function BookmarksFlow() {
           chapterId: chapterId ?? undefined,
         },
       }),
+    fallbackData: [],
+    route: "student/bookmarks/list",
+    requireAuth: true,
   });
 
   const items = useMemo(() => {

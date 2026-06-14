@@ -26,6 +26,7 @@ import {
 import { listWrongMcqs, markWrongMcqsMastered, removeWrongMcqs } from "@/lib/mcq-review.functions";
 import { listSubjects, listChapters } from "@/lib/learning.functions";
 import { useLevels } from "@/hooks/use-levels";
+import { useSafeQuery } from "@/lib/safe-query";
 
 /* -------------------------------------------------- */
 /* Tiny inline sparkline (SVG, no deps)               */
@@ -224,20 +225,26 @@ export function WrongQuestionsFlow() {
   const subjectsFn = useServerFn(listSubjects);
   const chaptersFn = useServerFn(listChapters);
 
-  const subjectsQ = useQuery({
+  const subjectsQ = useSafeQuery<any[]>({
     queryKey: ["subjects", level],
     queryFn: () => subjectsFn({ data: { level: level ?? undefined } }),
+    fallbackData: [],
+    route: "student/wrong-questions/subjects",
+    requireAuth: true,
   });
   const { data: levelsList = [] } = useLevels();
 
-  const chaptersQ = useQuery({
+  const chaptersQ = useSafeQuery<any[]>({
     queryKey: ["chapters", subjectId],
     queryFn: () => chaptersFn({ data: { subjectId: subjectId! } }),
     enabled: !!subjectId,
+    fallbackData: [],
+    route: "student/wrong-questions/chapters",
+    requireAuth: true,
   });
 
   // Pending wrong (default — RLS scoped, mastered=false)
-  const wrongQ = useQuery({
+  const wrongQ = useSafeQuery<any[]>({
     queryKey: ["mcq-wrong", { level, subjectId, chapterId }],
     queryFn: () =>
       listFn({
@@ -247,10 +254,13 @@ export function WrongQuestionsFlow() {
           chapterId: chapterId ?? undefined,
         },
       }),
+    fallbackData: [],
+    route: "student/wrong-questions/list",
+    requireAuth: true,
   });
 
   // Full set incl. mastered for analytics
-  const allQ = useQuery({
+  const allQ = useSafeQuery<any[]>({
     queryKey: ["mcq-wrong-all", { level, subjectId, chapterId }],
     queryFn: () =>
       listFn({
@@ -261,6 +271,9 @@ export function WrongQuestionsFlow() {
           includeMastered: true,
         },
       }),
+    fallbackData: [],
+    route: "student/wrong-questions/all",
+    requireAuth: true,
   });
 
   const items = useMemo(() => (wrongQ.data ?? []).filter((w) => !!w.mcq), [wrongQ.data]);
