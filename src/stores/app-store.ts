@@ -345,7 +345,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
         return null;
       } finally {
-        if (!options?.force) inflightRefresh = null;
+        if (inflightRefresh === run) inflightRefresh = null;
       }
     })();
     if (!options?.force) inflightRefresh = run;
