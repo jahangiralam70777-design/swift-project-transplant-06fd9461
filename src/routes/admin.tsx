@@ -11,6 +11,7 @@ import { useAppStore, hasLocalAuthSession } from "@/stores/app-store";
 import { supabase } from "@/integrations/supabase/client";
 import { verifyAdminAccess, type VerifyAdminAccessResult } from "@/lib/admin-verify.functions";
 import { useServerFn } from "@tanstack/react-start";
+import { SectionBoundary } from "@/components/ui/section-state";
 
 export const Route = createFileRoute("/admin")({
   // Admin session lives in localStorage (Supabase). SSR-skip + a
@@ -151,7 +152,9 @@ function AdminLayout() {
         <AdminGate>
           <AdminSidebar />
           <div className="pointer-events-auto min-w-0 flex-1 space-y-4">
-            <Outlet />
+            <SectionBoundary name="admin:outlet">
+              <Outlet />
+            </SectionBoundary>
           </div>
         </AdminGate>
       </div>
