@@ -111,20 +111,25 @@ export function AdminFlow() {
 
   const cc = useQuery({
     queryKey: ["admin-control-center"],
-    queryFn: () => ccFn(),
+    queryFn: () => safeQuery("admin/control-center", () => ccFn(), FALLBACK_ADMIN_CONTROL_CENTER),
   });
   const po = useQuery({
     queryKey: ["admin-premium-overview", periodDays, participationScope],
     queryFn: () =>
-      poFn({ data: { period_days: periodDays, participation_scope: participationScope } }),
+      safeQuery(
+        "admin/premium-overview",
+        () => poFn({ data: { period_days: periodDays, participation_scope: participationScope } }),
+        null as AdminPremiumOverview | null,
+      ),
   });
   const snap = useQuery({
     queryKey: ["admin-dashboard-snapshot"],
-    queryFn: () => snapFn(),
+    queryFn: () => safeQuery("admin/dashboard-snapshot", () => snapFn(), FALLBACK_ADMIN_DASHBOARD),
   });
   const badge = useQuery({
     queryKey: ["admin-notifications-badge"],
-    queryFn: () => badgeFn(),
+    queryFn: () =>
+      safeQuery("admin/notifications-badge", () => badgeFn(), FALLBACK_ADMIN_NOTIFICATIONS_BADGE),
   });
 
   return (
