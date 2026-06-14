@@ -1,7 +1,7 @@
 import { keepPreviousData, type UseQueryOptions, type UseQueryResult, useQuery } from "@tanstack/react-query";
 import { safeQuery } from "@/lib/safe-request";
 
-type SafeQueryOptions<TData> = Omit<UseQueryOptions<TData, Error, TData, readonly unknown[]>, "queryFn"> & {
+type SafeQueryOptions<TData> = Omit<UseQueryOptions<TData, Error, TData, any>, "queryFn"> & {
   queryKey: readonly unknown[];
   queryFn: () => Promise<TData>;
   fallbackData: TData;
