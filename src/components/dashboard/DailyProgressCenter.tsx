@@ -58,6 +58,25 @@ import {
 import { useRealtimeActivity } from "@/hooks/use-realtime-invalidator";
 import { useAppStore } from "@/stores/app-store";
 import { CountUp } from "@/components/realtime/CountUp";
+import { useSafeQuery } from "@/lib/safe-query";
+
+const FALLBACK_DAILY_PROGRESS = {
+  userLevel: "professional",
+  levels: [] as string[],
+  today: { mcqs: 0, quizzes: 0, mocks: 0, customExams: 0, attempts: 0, studyMinutes: 0, accuracy: 0, chaptersTouched: 0, streak: 0, bestStreak: 0, correct: 0, wrong: 0 },
+  week: { attempts: 0, mcqs: 0, quizzes: 0, mocks: 0, studyMinutes: 0, accuracy: 0, deltaAccuracy: 0, deltaAttempts: 0, bars: [] as number[] },
+  month: { attempts: 0, mcqs: 0, quizzes: 0, mocks: 0, accuracy: 0, studyMinutes: 0, activeDays: 0 },
+  totals: { attempts: 0, correct: 0, wrong: 0, answered: 0, accuracy: 0, avgScore: 0, studyMinutes: 0, mcqs: 0, quizzes: 0, mocks: 0, customExams: 0, chaptersCompleted: 0, subjectsCovered: 0 },
+  series: [] as Array<{ label: string; mcqs: number; accuracy: number }>,
+  yearHeatmap: [] as Array<{ date: string; count: number }>,
+  heatmap: [] as Array<{ date: string; count: number }>,
+  timeline: [] as Array<Record<string, unknown>>,
+  subjects: [] as Array<Record<string, any>>,
+  chapters: [] as Array<Record<string, any>>,
+  insights: { strongest: null, weakest: null, inactive: [] as unknown[], productiveDay: null, studyDelta: 0, mostImproved: null },
+  wrongQuestions: { unresolved: 0, resolved: 0, retries: 0, topSubjects: [] as unknown[] },
+  bookmarks: { total: 0, topSubjects: [] as unknown[] },
+};
 
 type RangeKey = "today" | "week" | "month" | "30d";
 const RANGE_LABEL: Record<RangeKey, string> = {
@@ -379,19 +398,25 @@ export function DailyProgressCenter() {
   const [editing, setEditing] = useState<null | "daily" | "weekly" | "monthly">(null);
   const [savedFlash, setSavedFlash] = useState<null | "daily" | "weekly" | "monthly">(null);
 
-  const { data, isLoading } = useQuery({
+  const { data = FALLBACK_DAILY_PROGRESS, isLoading } = useSafeQuery<any>({
     queryKey: ["student-daily-progress"],
     queryFn: () => fetchFn(),
+    fallbackData: FALLBACK_DAILY_PROGRESS,
+    route: "student/daily-progress",
+    requireAuth: true,
     staleTime: 15_000,
     refetchOnWindowFocus: true,
   });
 
   // Goals — server-backed via Supabase (RLS scoped to auth.uid()); on first
   // load uses cached localStorage as initial data to avoid flashing defaults.
-  const goalsQuery = useQuery({
+  const goalsQuery = useSafeQuery<UserGoals>({
     queryKey: ["user-goals", uid],
     queryFn: () => fetchGoalsFn(),
     enabled: !!user?.id,
+    fallbackData: readLocalGoals(uid),
+    route: "student/user-goals",
+    requireAuth: true,
     initialData: () => readLocalGoals(uid),
     staleTime: 60_000,
   });
