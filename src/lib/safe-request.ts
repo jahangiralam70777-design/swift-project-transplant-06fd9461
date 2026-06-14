@@ -42,12 +42,26 @@ export function normalizeError(error: unknown, route?: string): SafeRequestError
     return { message: "Request timed out", code: "TIMEOUT", route, cause: error };
   }
   if (error instanceof Error) {
-    return { message: error.message || "Request failed", code: "REQUEST_FAILED", route, cause: error };
+    return {
+      message: error.message || "Request failed",
+      code: "REQUEST_FAILED",
+      route,
+      cause: error,
+    };
   }
-  return { message: String(error ?? "Request failed"), code: "REQUEST_FAILED", route, cause: error };
+  return {
+    message: String(error ?? "Request failed"),
+    code: "REQUEST_FAILED",
+    route,
+    cause: error,
+  };
 }
 
-export function logDataLoadFailure(route: string, error: unknown, details?: Record<string, unknown>) {
+export function logDataLoadFailure(
+  route: string,
+  error: unknown,
+  details?: Record<string, unknown>,
+) {
   const normalized = normalizeError(error, route);
   console.error("[data-load-failed]", {
     route,
@@ -82,7 +96,13 @@ export async function safeFetchJson<T>(
       return {
         ok: false,
         status: response.status,
-        error: { message, code: `HTTP_${response.status}`, status: response.status, route, cause: payload },
+        error: {
+          message,
+          code: `HTTP_${response.status}`,
+          status: response.status,
+          route,
+          cause: payload,
+        },
       };
     }
 

@@ -84,18 +84,12 @@ export function DefaultErrorFallback({ error, reset }: { error: Error; reset: ()
   }, [error]);
 
   return (
-    <div
-      role="alert"
-      aria-live="polite"
-      className="px-4 py-6"
-    >
+    <div role="alert" aria-live="polite" className="px-4 py-6">
       <div className="mx-auto max-w-md text-center">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
           <Icon className="h-6 w-6 text-destructive" aria-hidden />
         </div>
-        <h2 className="mt-4 text-lg font-semibold text-foreground">
-          This section failed to load.
-        </h2>
+        <h2 className="mt-4 text-lg font-semibold text-foreground">This section failed to load.</h2>
         <p className="mt-2 text-sm text-muted-foreground">{message || title}</p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button

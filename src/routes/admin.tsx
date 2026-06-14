@@ -100,7 +100,10 @@ function AdminGate({ children }: { children: React.ReactNode }) {
           navigate({ to: "/admin/login", replace: true });
           return;
         }
-        console.info("[admin-route] admin verified", { userId: userData.user.id, role: result.role });
+        console.info("[admin-route] admin verified", {
+          userId: userData.user.id,
+          role: result.role,
+        });
         setVerified(true);
       } catch (error) {
         if (cancelled) return;
@@ -116,7 +119,9 @@ function AdminGate({ children }: { children: React.ReactNode }) {
   }, [authLoading, sessionReady, user?.id, navigate, verifyAdmin]);
 
   if (!verified) {
-    return <div className="min-h-[60dvh] flex-1 animate-pulse rounded-lg border border-border bg-muted/20" />;
+    return (
+      <div className="min-h-[60dvh] flex-1 animate-pulse rounded-lg border border-border bg-muted/20" />
+    );
   }
 
   return <>{children}</>;
