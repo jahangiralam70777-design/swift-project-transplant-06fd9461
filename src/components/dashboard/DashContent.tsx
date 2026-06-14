@@ -9,6 +9,7 @@ import {
 } from "@/lib/student-advanced-analytics.functions";
 import { FALLBACK_STUDENT_DASHBOARD } from "@/lib/services/student-dashboard.service";
 import { useSafeQuery } from "@/lib/safe-query";
+import { logDataLoadFailure } from "@/lib/safe-request";
 import { useAppStore } from "@/stores/app-store";
 import { SectionBoundary, SectionSkeleton } from "@/components/ui/section-state";
 
@@ -52,6 +53,183 @@ function greeting() {
   if (h < 12) return "Good Morning";
   if (h < 17) return "Good Afternoon";
   return "Good Evening";
+}
+
+type DashboardData = typeof FALLBACK_STUDENT_DASHBOARD;
+type AdvancedData = typeof FALLBACK_STUDENT_ADVANCED_ANALYTICS;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function finiteNumber(value: unknown, fallback = 0) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function logInvalidField(source: string, field: string, value: unknown) {
+  if (value == null) return;
+  logDataLoadFailure(source, new Error(`Invalid Student Dashboard response field: ${field}`), {
+    field,
+    receivedType: Array.isArray(value) ? "array" : typeof value,
+  });
+}
+
+function arrayField<T>(source: string, field: string, value: unknown, fallback: T[] = []): T[] {
+  if (Array.isArray(value)) return value as T[];
+  logInvalidField(source, field, value);
+  return fallback;
+}
+
+function normalizeDashboardData(value: unknown): DashboardData {
+  const source = "student/dashboard/home-snapshot";
+  if (!isRecord(value)) {
+    logInvalidField(source, "root", value);
+    return FALLBACK_STUDENT_DASHBOARD;
+  }
+
+  const counts = isRecord(value.counts) ? value.counts : {};
+  if (value.counts != null && !isRecord(value.counts)) logInvalidField(source, "counts", value.counts);
+
+  const bars = arrayField<number>(source, "bars", value.bars, FALLBACK_STUDENT_DASHBOARD.bars)
+    .slice(0, 7)
+    .map((v) => Math.max(0, Math.min(100, finiteNumber(v))));
+  while (bars.length < 7) bars.push(0);
+
+  const subjects = arrayField<Record<string, unknown>>(source, "subjects", value.subjects)
+    .filter(isRecord)
+    .map((s, i) => ({
+      id: String(s.id ?? `subject-${i}`),
+      name: String(s.name ?? "Subject"),
+      color: typeof s.color === "string" ? s.color : null,
+      progress: Math.max(0, Math.min(100, finiteNumber(s.progress))),
+    }));
+
+  const recommendations = arrayField<Record<string, unknown>>(
+    source,
+    "recommendations",
+    value.recommendations,
+  )
+    .filter(isRecord)
+    .map((r, i) => ({
+      id: String(r.id ?? `recommendation-${i}`),
+      title: String(r.title ?? "Practice quiz"),
+      description: typeof r.description === "string" ? r.description : null,
+      total_questions: finiteNumber(r.total_questions),
+      duration_seconds: finiteNumber(r.duration_seconds),
+      subject_id: typeof r.subject_id === "string" ? r.subject_id : null,
+      created_at: typeof r.created_at === "string" ? r.created_at : null,
+      kind: typeof r.kind === "string" ? r.kind : null,
+      level: typeof r.level === "string" ? r.level : null,
+    }));
+
+  const notifications = arrayField<Record<string, unknown>>(source, "notifications", value.notifications)
+    .filter(isRecord)
+    .map((n, i) => ({
+      id: String(n.id ?? `notification-${i}`),
+      title: String(n.title ?? "Notification"),
+      body: typeof n.body === "string" ? n.body : null,
+      priority: typeof n.priority === "string" ? n.priority : null,
+      sent_at: typeof n.sent_at === "string" ? n.sent_at : null,
+      created_at: typeof n.created_at === "string" ? n.created_at : null,
+      type: typeof n.type === "string" ? n.type : null,
+    }));
+
+  const recentActivity = arrayField<Record<string, unknown>>(source, "recentActivity", value.recentActivity)
+    .filter(isRecord)
+    .map((a, i) => ({
+      id: String(a.id ?? `activity-${i}`),
+      quiz_id: typeof a.quiz_id === "string" ? a.quiz_id : null,
+      score: finiteNumber(a.score),
+      total: finiteNumber(a.total),
+      correct: finiteNumber(a.correct),
+      completed_at: typeof a.completed_at === "string" ? a.completed_at : null,
+    }));
+
+  const upcomingMock = isRecord(value.upcomingMock)
+    ? {
+        id: String(value.upcomingMock.id ?? "upcoming-mock"),
+        title: String(value.upcomingMock.title ?? "No mock scheduled"),
+        total_questions: finiteNumber(value.upcomingMock.total_questions),
+        duration_seconds: finiteNumber(value.upcomingMock.duration_seconds),
+        starts_at: typeof value.upcomingMock.starts_at === "string" ? value.upcomingMock.starts_at : null,
+        kind: typeof value.upcomingMock.kind === "string" ? value.upcomingMock.kind : null,
+        created_at: typeof value.upcomingMock.created_at === "string" ? value.upcomingMock.created_at : null,
+      }
+    : null;
+
+  return {
+    counts: {
+      mcqs: finiteNumber(counts.mcqs),
+      mcqsThisWeek: finiteNumber(counts.mcqsThisWeek),
+      quizzes: finiteNumber(counts.quizzes),
+      quizzesThisWeek: finiteNumber(counts.quizzesThisWeek),
+      mocks: finiteNumber(counts.mocks),
+      mocksThisWeek: finiteNumber(counts.mocksThisWeek),
+      notes: finiteNumber(counts.notes),
+      classes: finiteNumber(counts.classes),
+      attempts: finiteNumber(counts.attempts),
+    },
+    accuracy: Math.max(0, Math.min(100, finiteNumber(value.accuracy))),
+    streak: finiteNumber(value.streak),
+    bars,
+    subjects,
+    learning: arrayField(source, "learning", value.learning),
+    recommendations,
+    notifications,
+    upcomingMock,
+    recentActivity,
+  };
+}
+
+function normalizeAdvancedData(value: unknown): AdvancedData {
+  const source = "student/dashboard/advanced-summary";
+  if (!isRecord(value)) {
+    logInvalidField(source, "root", value);
+    return FALLBACK_STUDENT_ADVANCED_ANALYTICS;
+  }
+  const totals = isRecord(value.totals) ? value.totals : {};
+  const mcqCounts = isRecord(value.mcqCounts) ? value.mcqCounts : {};
+  const goals = isRecord(value.goals) ? value.goals : {};
+  const dailyGoal = isRecord(goals.daily) ? goals.daily : {};
+  const weeklyGoal = isRecord(goals.weekly) ? goals.weekly : {};
+
+  return {
+    ...FALLBACK_STUDENT_ADVANCED_ANALYTICS,
+    ...value,
+    mcqCounts: {
+      today: finiteNumber(mcqCounts.today),
+      week: finiteNumber(mcqCounts.week),
+      month: finiteNumber(mcqCounts.month),
+      daily: arrayField(source, "mcqCounts.daily", mcqCounts.daily),
+    },
+    totals: {
+      answered: finiteNumber(totals.answered),
+      correct: finiteNumber(totals.correct),
+      wrong: finiteNumber(totals.wrong),
+      accuracy: Math.max(0, Math.min(100, finiteNumber(totals.accuracy))),
+      attempts: finiteNumber(totals.attempts),
+      weeklyChange: finiteNumber(totals.weeklyChange),
+    },
+    goals: {
+      daily: {
+        solved: finiteNumber(dailyGoal.solved),
+        target: Math.max(1, finiteNumber(dailyGoal.target, 50)),
+        percent: Math.max(0, Math.min(100, finiteNumber(dailyGoal.percent))),
+      },
+      weekly: {
+        solved: finiteNumber(weeklyGoal.solved),
+        target: Math.max(1, finiteNumber(weeklyGoal.target, 350)),
+        percent: Math.max(0, Math.min(100, finiteNumber(weeklyGoal.percent))),
+      },
+    },
+    subjectAccuracy: arrayField(source, "subjectAccuracy", value.subjectAccuracy),
+    chapterAccuracy: arrayField(source, "chapterAccuracy", value.chapterAccuracy),
+    strongTopics: arrayField(source, "strongTopics", value.strongTopics),
+    weakTopics: arrayField(source, "weakTopics", value.weakTopics),
+    heatmap: arrayField(source, "heatmap", value.heatmap),
+    insights: arrayField(source, "insights", value.insights),
+  };
 }
 
 // Tiny inline sparkline
