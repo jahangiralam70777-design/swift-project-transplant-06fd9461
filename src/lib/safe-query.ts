@@ -1,5 +1,6 @@
 import { keepPreviousData, type UseQueryOptions, type UseQueryResult, useQuery } from "@tanstack/react-query";
 import { safeQuery } from "@/lib/safe-request";
+import { useAppStore } from "@/stores/app-store";
 
 type SafeQueryOptions<TData> = Omit<UseQueryOptions<TData, Error, TData, any>, "queryFn"> & {
   queryKey: readonly unknown[];
@@ -8,6 +9,7 @@ type SafeQueryOptions<TData> = Omit<UseQueryOptions<TData, Error, TData, any>, "
   route?: string;
   timeoutMs?: number;
   retries?: number;
+  requireAuth?: boolean;
 };
 
 export function safeQueryKeyRoute(queryKey: readonly unknown[]): string {
@@ -26,9 +28,15 @@ export function safeQueryKeyRoute(queryKey: readonly unknown[]): string {
 }
 
 export function useSafeQuery<TData>(options: SafeQueryOptions<TData>): UseQueryResult<TData, Error> {
-  const { queryFn, fallbackData, route, timeoutMs, retries, ...queryOptions } = options;
+  const { queryFn, fallbackData, route, timeoutMs, retries, requireAuth, ...queryOptions } = options;
+  const sessionReady = useAppStore((s) => s.sessionReady);
+  const authLoading = useAppStore((s) => s.authLoading);
+  const user = useAppStore((s) => s.user);
+  const authEnabled = !requireAuth || (sessionReady && !authLoading && !!user?.id);
   return useQuery({
     ...queryOptions,
+    enabled: authEnabled && (queryOptions.enabled ?? true),
+    initialData: queryOptions.initialData ?? fallbackData,
     placeholderData: queryOptions.placeholderData ?? keepPreviousData,
     queryFn: () =>
       safeQuery(route ?? safeQueryKeyRoute(queryOptions.queryKey), queryFn, fallbackData, {

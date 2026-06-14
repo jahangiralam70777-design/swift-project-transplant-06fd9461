@@ -32,6 +32,8 @@ type AppState = {
   setQuizRuntime: (quizRuntime: AppState["quizRuntime"]) => void;
 };
 
+const AUTH_TIMEOUT_MS = 8_000;
+
 const THEME_KEY = "edumaster.theme";
 const AUTH_SNAPSHOT_KEY = "edumaster.auth_snapshot";
 let authSubscribed = false;
@@ -86,6 +88,27 @@ export function hasLocalAuthSession(): boolean {
     return false;
   }
   return false;
+}
+
+export function hasDemoAuthSession(): boolean {
+  if (typeof window === "undefined" || !import.meta.env.DEV) return false;
+  try {
+    return Boolean(window.localStorage.getItem("edumaster.demo_session"));
+  } catch {
+    return false;
+  }
+}
+
+export async function waitForAuthReady(timeoutMs = AUTH_TIMEOUT_MS): Promise<boolean> {
+  if (typeof window === "undefined") return false;
+  if (hasDemoAuthSession()) return true;
+  try {
+    const timeout = new Promise<false>((resolve) => window.setTimeout(() => resolve(false), timeoutMs));
+    const session = supabase.auth.getSession().then(({ data }) => Boolean(data.session?.access_token));
+    return await Promise.race([session, timeout]);
+  } catch {
+    return false;
+  }
 }
 
 function persistAuthSnapshot(user: UserSession) {
