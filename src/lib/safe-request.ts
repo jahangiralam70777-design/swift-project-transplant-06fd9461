@@ -38,6 +38,10 @@ const DEFAULT_TIMEOUT_MS = 12_000;
 const FAILURE_LOG_DEDUPE_MS = 5_000;
 const recentFailureLogs = new Map<string, number>();
 
+function shouldLogFailures(): boolean {
+  return typeof import.meta !== "undefined" && Boolean(import.meta.env?.DEV);
+}
+
 function isObject(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object";
 }
@@ -113,6 +117,7 @@ export function logDataLoadFailure(
   error: unknown,
   details?: Record<string, unknown>,
 ) {
+  if (!shouldLogFailures()) return;
   const normalized = normalizeError(error, route);
   const key = `${route}|${normalized.code}|${normalized.status ?? ""}|${normalized.message}`;
   const now = Date.now();
