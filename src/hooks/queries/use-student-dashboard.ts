@@ -15,7 +15,8 @@ export const studentDashboardQueries = {
 
 export const useStudentDashboardSnapshot = () =>
   useSafeQuery({
-    ...studentDashboardQueries.snapshot(),
+    queryKey: ["student", "dashboard", "snapshot"] as const,
+    queryFn: () => StudentDashboardService.getDashboardSnapshot(),
     fallbackData: StudentDashboardService.FALLBACK_STUDENT_DASHBOARD,
     route: "student/dashboard/snapshot",
   });
