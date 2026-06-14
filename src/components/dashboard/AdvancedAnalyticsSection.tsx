@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Area,
   AreaChart,
@@ -49,6 +49,77 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+
+type AdvancedAnalyticsData = typeof FALLBACK_STUDENT_ADVANCED_ANALYTICS;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function num(value: unknown, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function list<T>(value: unknown, fallback: T[] = []): T[] {
+  return Array.isArray(value) ? (value as T[]) : fallback;
+}
+
+function normalizeAdvancedAnalytics(value: unknown): AdvancedAnalyticsData {
+  if (!isRecord(value)) return FALLBACK_STUDENT_ADVANCED_ANALYTICS;
+
+  const totals = isRecord(value.totals) ? value.totals : {};
+  const mcqCounts = isRecord(value.mcqCounts) ? value.mcqCounts : {};
+  const byKind = isRecord(value.byKind) ? value.byKind : {};
+  const mock = isRecord(byKind.mock) ? byKind.mock : {};
+  const quiz = isRecord(byKind.quiz) ? byKind.quiz : {};
+  const practice = isRecord(byKind.mcq_practice) ? byKind.mcq_practice : {};
+  const goals = isRecord(value.goals) ? value.goals : {};
+  const daily = isRecord(goals.daily) ? goals.daily : {};
+  const weekly = isRecord(goals.weekly) ? goals.weekly : {};
+  const streak = isRecord(value.streak) ? value.streak : {};
+
+  return {
+    mcqCounts: {
+      today: num(mcqCounts.today),
+      week: num(mcqCounts.week),
+      month: num(mcqCounts.month),
+      daily: list(mcqCounts.daily),
+    },
+    totals: {
+      answered: num(totals.answered),
+      correct: num(totals.correct),
+      wrong: num(totals.wrong),
+      accuracy: Math.max(0, Math.min(100, num(totals.accuracy))),
+      attempts: num(totals.attempts),
+      weeklyChange: num(totals.weeklyChange),
+    },
+    byKind: {
+      mock: { attempts: num(mock.attempts), accuracy: num(mock.accuracy) },
+      quiz: { attempts: num(quiz.attempts), accuracy: num(quiz.accuracy) },
+      mcq_practice: { attempts: num(practice.attempts), accuracy: num(practice.accuracy) },
+    },
+    subjectAccuracy: list(value.subjectAccuracy),
+    chapterAccuracy: list(value.chapterAccuracy),
+    strongTopics: list(value.strongTopics),
+    weakTopics: list(value.weakTopics),
+    heatmap: list(value.heatmap),
+    streak: { current: num(streak.current), longest: num(streak.longest) },
+    insights: list(value.insights),
+    goals: {
+      daily: {
+        solved: num(daily.solved),
+        target: Math.max(1, num(daily.target, 50)),
+        percent: Math.max(0, Math.min(100, num(daily.percent))),
+      },
+      weekly: {
+        solved: num(weekly.solved),
+        target: Math.max(1, num(weekly.target, 350)),
+        percent: Math.max(0, Math.min(100, num(weekly.percent))),
+      },
+    },
+  };
+}
 
 function PremiumCard({
   title,
