@@ -1,8 +1,4 @@
-import {
-  QueryClient,
-  QueryClientProvider,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import {
   Outlet,
   Link,
@@ -52,7 +48,10 @@ if (typeof window !== "undefined" && import.meta.env.PROD) {
 
 function NotFoundComponent() {
   return (
-    <main id="main-content" className="flex min-h-dvh items-center justify-center bg-background px-4">
+    <main
+      id="main-content"
+      className="flex min-h-dvh items-center justify-center bg-background px-4"
+    >
       <div className="max-w-md text-center">
         <p aria-hidden="true" className="text-7xl font-bold text-muted-foreground/40">
           404
@@ -89,13 +88,11 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 
   const { message, kind } = classifyError(error, "page");
   return (
-    <div
-      role="alert"
-      aria-live="assertive"
-      className="bg-background px-4 py-8"
-    >
+    <div role="alert" aria-live="assertive" className="bg-background px-4 py-8">
       <div className="mx-auto max-w-md rounded-2xl border border-destructive/20 bg-destructive/5 p-5 text-center">
-        <h1 className="text-lg font-semibold tracking-tight text-foreground">This section failed to load.</h1>
+        <h1 className="text-lg font-semibold tracking-tight text-foreground">
+          This section failed to load.
+        </h1>
         <p className="mt-2 text-sm text-muted-foreground">{message}</p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button

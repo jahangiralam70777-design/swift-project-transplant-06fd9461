@@ -39,7 +39,12 @@ export function normalizeError(error: unknown, route?: string): SafeRequestError
     };
   }
   if (error instanceof DOMException && error.name === "AbortError") {
-    return { message: "Request timed out", code: "TIMEOUT", route, cause: error };
+    return {
+      message: "Request timed out",
+      code: "TIMEOUT",
+      route,
+      cause: error,
+    };
   }
   if (error instanceof Error) {
     return {

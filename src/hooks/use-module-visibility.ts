@@ -48,9 +48,8 @@ export function useModuleVisibility() {
     const channel = supabase
       .channel("module-visibility-stream")
       .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "module_visibility" },
-        () => qc.invalidateQueries({ queryKey: ["module-visibility"] }),
+        "postgres_changes", { event: "*", schema: "public", table: "module_visibility" }, () =>
+          qc.invalidateQueries({ queryKey: ["module-visibility"] }),
       )
       .subscribe();
     return () => {
