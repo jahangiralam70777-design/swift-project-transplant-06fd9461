@@ -1,7 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { publicGetHomepageContent, publicGetSiteSettings } from "@/lib/site-management.functions";
 import { safeQuery } from "@/lib/safe-request";
+import { useSafeQuery } from "@/lib/safe-query";
 
 /**
  * Public read hooks for the admin-managed site content.
@@ -30,7 +30,7 @@ export type SectionEntry = {
 };
 
 export function useHomepageSections() {
-  return useQuery({
+  return useSafeQuery({
     queryKey: SITE_CONTENT_KEY,
     queryFn: async () => {
       const res = await safeQuery("site-content/homepage", () => publicGetHomepageContent(), {
@@ -38,13 +38,14 @@ export function useHomepageSections() {
       });
       return res.sections as SectionEntry[];
     },
+    fallbackData: [],
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
 }
 
 export function useSiteSettings() {
-  return useQuery({
+  return useSafeQuery({
     queryKey: SITE_SETTINGS_KEY,
     queryFn: async () => {
       const res = await safeQuery("site-content/settings", () => publicGetSiteSettings(), {
@@ -53,6 +54,7 @@ export function useSiteSettings() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return res.settings as Record<string, Record<string, any>>;
     },
+    fallbackData: {},
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });

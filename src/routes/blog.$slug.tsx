@@ -136,9 +136,7 @@ function BlogPostPage() {
         "postgres_changes",
         { event: "*", schema: "public", table: "blog_posts", filter: `id=eq.${post.id}` },
         () => {
-          qc.invalidateQueries();
-          // Refresh route loader data
-          if (typeof window !== "undefined") window.location.reload();
+          qc.invalidateQueries({ queryKey: ["blog"] });
         },
       )
       .subscribe();

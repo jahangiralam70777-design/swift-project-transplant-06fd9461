@@ -1,8 +1,9 @@
 /**
  * Admin dashboard hooks.
  */
-import { queryOptions, useQuery } from "@tanstack/react-query";
+import { queryOptions } from "@tanstack/react-query";
 import * as AdminDashboardService from "@/lib/services/admin-dashboard.service";
+import { useSafeQuery } from "@/lib/safe-query";
 
 export const adminDashboardQueries = {
   snapshot: () =>
@@ -22,6 +23,24 @@ export const adminDashboardQueries = {
     }),
 };
 
-export const useAdminDashboardSnapshot = () => useQuery(adminDashboardQueries.snapshot());
-export const useAdminControlCenter = () => useQuery(adminDashboardQueries.controlCenter());
-export const useAdminNotificationsBadge = () => useQuery(adminDashboardQueries.notificationsBadge());
+export const useAdminDashboardSnapshot = () =>
+  useSafeQuery({
+    queryKey: ["admin", "dashboard", "snapshot"] as const,
+    queryFn: () => AdminDashboardService.getDashboardSnapshot(),
+    fallbackData: AdminDashboardService.FALLBACK_ADMIN_DASHBOARD,
+    route: "admin/dashboard/snapshot",
+  });
+export const useAdminControlCenter = () =>
+  useSafeQuery({
+    queryKey: ["admin", "dashboard", "control-center"] as const,
+    queryFn: () => AdminDashboardService.getControlCenter(),
+    fallbackData: AdminDashboardService.FALLBACK_ADMIN_CONTROL_CENTER,
+    route: "admin/dashboard/control-center",
+  });
+export const useAdminNotificationsBadge = () =>
+  useSafeQuery({
+    queryKey: ["admin", "notifications", "badge"] as const,
+    queryFn: () => AdminDashboardService.getNotificationsBadge(),
+    fallbackData: AdminDashboardService.FALLBACK_ADMIN_NOTIFICATIONS_BADGE,
+    route: "admin/notifications/badge",
+  });

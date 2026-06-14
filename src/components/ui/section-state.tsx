@@ -4,14 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { logDataLoadFailure } from "@/lib/safe-request";
+import { classifyError, isTransientError } from "@/lib/error-classify";
 
-type BoundaryState = { error: Error | null; resetKey: number };
+type BoundaryState = { error: Error | null; resetKey: number; attempts: number };
 
 export class SectionBoundary extends Component<
   { children: ReactNode; name?: string; className?: string },
   BoundaryState
 > {
-  state: BoundaryState = { error: null, resetKey: 0 };
+  state: BoundaryState = { error: null, resetKey: 0, attempts: 0 };
+  private retryTimer: ReturnType<typeof setTimeout> | null = null;
 
   static getDerivedStateFromError(error: Error): Partial<BoundaryState> {
     return { error };
@@ -21,9 +23,18 @@ export class SectionBoundary extends Component<
     logDataLoadFailure(this.props.name ?? "section", error, {
       componentStack: info.componentStack?.slice(0, 3000),
     });
+    if (isTransientError(error) && this.state.attempts < 2) {
+      this.retryTimer = setTimeout(() => {
+        this.setState((s) => ({ error: null, resetKey: s.resetKey + 1, attempts: s.attempts + 1 }));
+      }, 700 * Math.pow(2, this.state.attempts));
+    }
   }
 
-  reset = () => this.setState((s) => ({ error: null, resetKey: s.resetKey + 1 }));
+  componentWillUnmount() {
+    if (this.retryTimer) clearTimeout(this.retryTimer);
+  }
+
+  reset = () => this.setState((s) => ({ error: null, resetKey: s.resetKey + 1, attempts: 0 }));
 
   render() {
     if (this.state.error) {
@@ -61,7 +72,7 @@ export function SectionErrorFallback({
   onRetry?: () => void | Promise<void>;
   className?: string;
 }) {
-  const message = error instanceof Error ? error.message : undefined;
+  const { message } = classifyError(error, "section");
   return (
     <div
       role="alert"

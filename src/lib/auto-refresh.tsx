@@ -24,7 +24,7 @@ import { RefreshCw, Radio } from "lucide-react";
 export type RefreshTier = "critical" | "normal" | "static";
 
 const TIER_INTERVAL_MS: Record<RefreshTier, number | null> = {
-  critical: 20_000,
+  critical: 45_000,
   normal: 120_000,
   static: null,
 };
@@ -77,7 +77,7 @@ export function AutoRefreshController() {
   // and prevents overlapping invalidations within a 2s window.
   const refresh = (reason: string) => {
     const now = Date.now();
-    if (now - lastRefreshRef.current < 2000) return;
+    if (now - lastRefreshRef.current < 5000) return;
     lastRefreshRef.current = now;
     void queryClient.invalidateQueries({
       type: "active",

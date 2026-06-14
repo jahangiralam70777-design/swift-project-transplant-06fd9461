@@ -42,6 +42,13 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useAppStore } from "@/stores/app-store";
 import { FloatingQuickActions } from "@/components/admin/FloatingQuickActions";
+import { safeQuery } from "@/lib/safe-request";
+import {
+  FALLBACK_ADMIN_CONTROL_CENTER,
+  FALLBACK_ADMIN_DASHBOARD,
+  FALLBACK_ADMIN_NOTIFICATIONS_BADGE,
+  FALLBACK_ADMIN_PREMIUM_OVERVIEW,
+} from "@/lib/services/admin-dashboard.service";
 import {
   adminControlCenter,
   adminDashboardSnapshot,
@@ -105,24 +112,25 @@ export function AdminFlow() {
 
   const cc = useQuery({
     queryKey: ["admin-control-center"],
-    queryFn: () => ccFn(),
-    refetchInterval: 15_000,
+    queryFn: () => safeQuery("admin/control-center", () => ccFn(), FALLBACK_ADMIN_CONTROL_CENTER),
   });
   const po = useQuery({
     queryKey: ["admin-premium-overview", periodDays, participationScope],
     queryFn: () =>
-      poFn({ data: { period_days: periodDays, participation_scope: participationScope } }),
-    refetchInterval: 15_000,
+      safeQuery(
+        "admin/premium-overview",
+        () => poFn({ data: { period_days: periodDays, participation_scope: participationScope } }),
+        FALLBACK_ADMIN_PREMIUM_OVERVIEW,
+      ),
   });
   const snap = useQuery({
     queryKey: ["admin-dashboard-snapshot"],
-    queryFn: () => snapFn(),
-    refetchInterval: 20_000,
+    queryFn: () => safeQuery("admin/dashboard-snapshot", () => snapFn(), FALLBACK_ADMIN_DASHBOARD),
   });
   const badge = useQuery({
     queryKey: ["admin-notifications-badge"],
-    queryFn: () => badgeFn(),
-    refetchInterval: 20_000,
+    queryFn: () =>
+      safeQuery("admin/notifications-badge", () => badgeFn(), FALLBACK_ADMIN_NOTIFICATIONS_BADGE),
   });
 
   return (

@@ -16,6 +16,7 @@ import {
   Filter as FilterIcon,
 } from "lucide-react";
 import { adminListUsers } from "@/lib/admin-users.functions";
+import { safeQuery } from "@/lib/safe-request";
 import { getRoleDisplayName } from "@/lib/role-display";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -83,17 +84,22 @@ function AdminUsersListPage() {
   const { data, isFetching, error } = useQuery({
     queryKey,
     queryFn: () =>
-      listFn({
-        data: {
-          search: search.q || undefined,
-          status: search.status,
-          role: search.role,
-          verified: search.verified,
-          dateRange: search.dateRange,
-          page: search.page,
-          pageSize: search.pageSize,
-        },
-      }),
+      safeQuery(
+        "admin/users/drilldown",
+        () =>
+          listFn({
+            data: {
+              search: search.q || undefined,
+              status: search.status,
+              role: search.role,
+              verified: search.verified,
+              dateRange: search.dateRange,
+              page: search.page,
+              pageSize: search.pageSize,
+            },
+          }),
+        { rows: [], count: 0, page: search.page, pageSize: search.pageSize },
+      ),
     placeholderData: keepPreviousData,
   });
 

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { useAppStore } from "@/stores/app-store";
+import { safeQuery } from "@/lib/safe-request";
 import {
   listMyNotifications,
   markNotificationRead,
@@ -36,7 +37,7 @@ export function useMyNotifications(enabledOpt = true) {
 
   const q = useQuery({
     queryKey: MY_NOTIF_KEY,
-    queryFn: () => listFn() as Promise<MyNotification[]>,
+    queryFn: () => safeQuery<MyNotification[]>("my-notifications", () => listFn() as Promise<MyNotification[]>, []),
     enabled,
     staleTime: 30_000,
   });

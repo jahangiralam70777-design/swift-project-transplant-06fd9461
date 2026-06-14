@@ -37,8 +37,7 @@ export const verifyAdminAccess = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<VerifyAdminAccessResult> => {
     const { userId } = context;
     try {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await context.supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", userId)
@@ -49,10 +48,13 @@ export const verifyAdminAccess = createServerFn({ method: "GET" })
       const claims = context.claims as {
         app_metadata?: { role?: string; roles?: unknown[] };
       };
-      const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(userId);
-      const appMetadata = (authUser.user?.app_metadata ?? {}) as Record<string, unknown>;
       let profileRole: string | null = null;
+      let appMetadataRole: string | null = null;
       try {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(userId);
+        const appMetadata = (authUser.user?.app_metadata ?? {}) as Record<string, unknown>;
+        appMetadataRole = typeof appMetadata.role === "string" ? appMetadata.role : null;
         const { data: profile } = await supabaseAdmin
           .from("profiles")
           .select("role")
@@ -70,7 +72,7 @@ export const verifyAdminAccess = createServerFn({ method: "GET" })
         databaseRoles,
         jwtRole: typeof metadataRole === "string" ? metadataRole : null,
         jwtRoles: metadataRoles,
-        appMetadataRole: typeof appMetadata.role === "string" ? appMetadata.role : null,
+        appMetadataRole,
         profileRole,
       };
       console.info("[admin-auth] role sources", { userId, ...sources });
