@@ -270,9 +270,18 @@ function RootInner() {
     if (authVersion === lastAuthVersion.current) return;
     lastAuthVersion.current = authVersion;
     console.debug("[auth] global refresh", { authVersion, hasUser: !!user });
-    queryClient.invalidateQueries();
+    if (!user) {
+      void queryClient.cancelQueries();
+      queryClient.removeQueries({ predicate: (query) => String(query.queryKey[0] ?? "").startsWith("admin") || String(query.queryKey[0] ?? "").startsWith("student") || String(query.queryKey[0] ?? "") === "my-notifications" });
+      return;
+    }
+    void queryClient.invalidateQueries({
+      type: "active",
+      predicate: (query) =>
+        query.state.fetchStatus !== "fetching" &&
+        !(query.state.status === "error" && query.state.data == null),
+    });
     void router.invalidate();
-    (router as unknown as { refresh?: () => void }).refresh?.();
   }, [authVersion, queryClient, router, user]);
 
   const path = location.pathname;
