@@ -172,7 +172,7 @@ export async function safeFetchJson<T>(
   try {
     const response = await fetch(input, {
       ...init,
-      signal: mergeAbortSignals(controller.signal, init.signal),
+      signal: mergeAbortSignals(controller.signal, init.signal ?? undefined),
     });
     const contentType = response.headers.get("content-type") ?? "";
     const payload = contentType.includes("application/json")
