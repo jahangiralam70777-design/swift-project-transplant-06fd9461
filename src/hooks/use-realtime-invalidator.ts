@@ -343,7 +343,7 @@ export function useRealtimeInvalidator(enabled = true) {
   useEffect(() => {
     if (!enabled) return;
     const pendingKeys = new Set<string>();
-    let flushTimer: ReturnType<typeof window.setTimeout> | null = null;
+    let flushTimer: number | null = null;
 
     const scheduleInvalidation = (keys: readonly string[]) => {
       keys.forEach((key) => pendingKeys.add(key));
